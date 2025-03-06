@@ -45,10 +45,41 @@ def create_app():
     logger.info("Flask application configured successfully")
     return app
 
-from app import create_app
-
 app = create_app()
 
 if __name__ == "__main__":
-    # Start Flask development server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Use Gunicorn with worker configuration for better resource management
+    from gunicorn.app.base import BaseApplication
+
+    class StandaloneApplication(BaseApplication):
+        def __init__(self, app, options=None):
+            self.options = options or {}
+            self.application = app
+            super().__init__()
+
+        def load_config(self):
+            for key, value in self.options.items():
+                self.cfg.set(key.lower(), value)
+
+        def load(self):
+            return self.application
+
+    options = {
+        'bind': '0.0.0.0:5000',
+        'workers': 2,  # Use 2 workers to handle requests
+        'worker_class': 'sync',
+        'timeout': 300,  # 5 minute timeout for long operations
+        'graceful_timeout': 30,
+        'keepalive': 2,
+        'max_requests': 10,  # Restart workers after 10 requests to prevent memory leaks
+        'max_requests_jitter': 3,
+        'preload_app': True,  # Preload app to reduce memory usage
+        'worker_tmp_dir': '/dev/shm',  # Use shared memory for worker temp files
+        'worker_exit': lambda server, worker: logger.info(f'Worker {worker.pid} exited'),
+    }
+
+    logger.info("Starting Gunicorn server with worker management...")
+    StandaloneApplication(app, options).run()
+else:
+    # For production deployment
+    application = app
