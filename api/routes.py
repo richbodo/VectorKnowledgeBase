@@ -116,45 +116,50 @@ def upload_document():
         flash(f"Internal server error: {str(e)}", "error")
         return redirect(url_for('api.index'))
 
-@bp.route('/query', methods=['POST'])
+@bp.route('/query', methods=['GET', 'POST'])
 def query_documents():
     """Query the vector database"""
     try:
-        if request.is_json:
-            data = request.get_json()
-            query = data.get('query', '').strip() if data else ''
-        else:
-            query = request.form.get('query', '').strip()
-
-        if not query:
-            error_msg = "Query cannot be empty"
+        # Only process query if it's a POST request
+        if request.method == 'POST':
             if request.is_json:
-                return jsonify({"error": error_msg}), 400
-            flash(error_msg, "error")
-            return redirect(url_for('api.index'))
+                data = request.get_json()
+                query = data.get('query', '').strip() if data else ''
+            else:
+                query = request.form.get('query', '').strip()
 
-        vector_store = VectorStore.get_instance()
-        results = vector_store.search(query)
+            if not query:
+                error_msg = "Query cannot be empty"
+                if request.is_json:
+                    return jsonify({"error": error_msg}), 400
+                flash(error_msg, "error")
+                return redirect(url_for('api.index'))
 
-        if results is None:
-            logger.error("Vector store search returned None")
-            error_msg = "Failed to perform vector search"
+            vector_store = VectorStore.get_instance()
+            results = vector_store.search(query)
+
+            if results is None:
+                logger.error("Vector store search returned None")
+                error_msg = "Failed to perform vector search"
+                if request.is_json:
+                    return jsonify({"error": error_msg}), 500
+                flash(error_msg, "error")
+                return redirect(url_for('api.index'))
+
             if request.is_json:
-                return jsonify({"error": error_msg}), 500
-            flash(error_msg, "error")
-            return redirect(url_for('api.index'))
+                return jsonify({
+                    "results": [{
+                        "content": result.content,
+                        "similarity_score": result.similarity_score,
+                        "metadata": result.metadata
+                    } for result in results],
+                    "message": "Query processed successfully"
+                })
 
-        if request.is_json:
-            return jsonify({
-                "results": [{
-                    "content": result.content,
-                    "similarity_score": result.similarity_score,
-                    "metadata": result.metadata
-                } for result in results],
-                "message": "Query processed successfully"
-            })
+            return render_template('index.html', results=results)
 
-        return render_template('index.html', results=results)
+        # If it's a GET request, just show the form
+        return render_template('index.html')
 
     except BadRequest as e:
         if request.is_json:
