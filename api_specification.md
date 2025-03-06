@@ -1,7 +1,7 @@
 # PDF Processing API Specification
 
 ## Base URL
-The API is accessible at: `https://{repl-name}.{repl-owner}.repl.co`
+The API is accessible at: `https://VectorKnowledgeBase.RichBodo.repl.co`
 
 The application is deployed using Replit's deployment service which automatically handles HTTPS and domain mapping. No port number is needed in the URL as Replit handles the port forwarding internally.
 
@@ -42,7 +42,7 @@ Upload a PDF document for processing and vector storage.
 
 **Example Usage:**
 ```bash
-curl -X POST https://{repl-name}.{repl-owner}.repl.co/upload \
+curl -X POST https://pdf-processor.johndoe.repl.co/upload \
   -F "file=@document.pdf" 
 ```
 
@@ -69,8 +69,21 @@ Search through uploaded documents using semantic similarity.
       "content": "Relevant text excerpt from the document",
       "score": 0.89,
       "metadata": {
-        "source": "document-name.pdf",
-        "section": "Part 2 of 5"
+        "source": "Part 2 of 5",
+        "file_type": "application/pdf",
+        "uploaded_at": "2025-03-06T23:35:27.648Z",
+        "file_size": "1.2MB"
+      }
+    },
+    {
+      "title": "another-document.pdf",
+      "content": "Another relevant excerpt",
+      "score": 0.75,
+      "metadata": {
+        "source": "Part 1 of 3",
+        "file_type": "application/pdf",
+        "uploaded_at": "2025-03-06T22:15:12.331Z",
+        "file_size": "2.5MB"
       }
     }
   ]
@@ -91,7 +104,7 @@ Search through uploaded documents using semantic similarity.
 
 **Example Usage:**
 ```bash
-curl -X POST https://{repl-name}.{repl-owner}.repl.co/query \
+curl -X POST https://pdf-processor.johndoe.repl.co/query \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the main points discussed in the document?"}'
 ```
