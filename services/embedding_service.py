@@ -3,7 +3,7 @@ import os
 import time
 import traceback
 from typing import List, Optional
-import openai
+from openai import OpenAI
 from config import OPENAI_API_KEY, EMBEDDING_MODEL
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ class EmbeddingService:
         if not OPENAI_API_KEY:
             logger.error("OPENAI_API_KEY not found in environment")
             raise ValueError("OPENAI_API_KEY not configured")
-        openai.api_key = OPENAI_API_KEY
+        self.client = OpenAI(api_key=OPENAI_API_KEY)
         logger.info(f"Using embedding model: {EMBEDDING_MODEL}")
 
     def generate_embedding(self, text: str) -> Optional[List[float]]:
@@ -36,12 +36,17 @@ class EmbeddingService:
             for attempt in range(max_retries):
                 try:
                     api_start = time.time()
-                    response = openai.Embedding.create(
+                    logger.debug(f"Making API call attempt {attempt + 1}")
+
+                    response = self.client.embeddings.create(
                         model=EMBEDDING_MODEL,
                         input=text
                     )
                     api_time = time.time() - api_start
                     logger.info(f"OpenAI API call completed in {api_time:.2f}s")
+
+                    # Debug log the response structure
+                    logger.debug(f"API Response structure: {response}")
 
                     embedding = response.data[0].embedding
                     total_time = time.time() - start_time
@@ -49,7 +54,7 @@ class EmbeddingService:
                     return embedding
 
                 except Exception as api_error:
-                    logger.warning(f"API call attempt {attempt + 1} failed: {str(api_error)}")
+                    logger.warning(f"API call attempt {attempt + 1} failed: {str(api_error)}\n{traceback.format_exc()}")
                     if attempt < max_retries - 1:
                         logger.info(f"Retrying in {retry_delay} seconds...")
                         time.sleep(retry_delay)
