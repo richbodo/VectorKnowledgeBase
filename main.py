@@ -64,8 +64,11 @@ if __name__ == "__main__":
     options = {
         'bind': '0.0.0.0:5000',
         'workers': 1,
-        'timeout': 120,  # Increase timeout to 120 seconds
-        'reload': True
+        'timeout': 300,  # Increase timeout to 300 seconds
+        'reload': True,
+        'preload_app': True,  # Preload app to reduce memory usage
+        'max_requests': 1,    # Restart worker after each request to prevent memory leaks
+        'worker_class': 'sync'
     }
 
     StandaloneApplication(app, options).run()
