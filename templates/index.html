@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Document Processing</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-4">
+        <h1 class="mb-4">PDF Document Processing</h1>
+        
+        <!-- Upload Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Upload PDF Document</h2>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('api.upload_document') }}" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Select PDF File</label>
+                        <input type="file" class="form-control" id="file" name="file" accept="application/pdf" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Query Section -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Query Documents</h2>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('api.query_documents') }}" method="post">
+                    <div class="mb-3">
+                        <label for="query" class="form-label">Enter your query</label>
+                        <textarea class="form-control" id="query" name="query" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
