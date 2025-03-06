@@ -92,7 +92,7 @@
                     Toggle Debug Info
                 </button>
             </div>
-            <div id="debugInfo" class="collapse">
+            <div id="debugInfo" class="collapse show">
                 <div class="card-body">
                     <h3 class="h6">Vector Store State:</h3>
                     <pre class="bg-dark text-light p-3 rounded">
@@ -112,6 +112,13 @@ Documents:
                     <h3 class="h6 mt-3">Error Information:</h3>
                     <pre class="bg-dark text-light p-3 rounded">{{ error }}</pre>
                     {% endif %}
+
+                    <h3 class="h6 mt-3">Server Logs:</h3>
+                    <pre class="bg-dark text-light p-3 rounded" style="max-height: 300px; overflow-y: auto;">
+{% for category, message in get_flashed_messages(with_categories=true) %}
+[{{ category }}] {{ message }}
+{% endfor %}
+                    </pre>
                 </div>
             </div>
         </div>
