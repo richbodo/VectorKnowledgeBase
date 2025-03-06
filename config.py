@@ -10,5 +10,5 @@ FAISS_INDEX_PATH = "faiss_index"
 DOCUMENT_STORE_PATH = "document_store.json"
 
 # API Configuration
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 ALLOWED_FILE_TYPES = ["application/pdf"]
