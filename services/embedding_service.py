@@ -1,5 +1,7 @@
 import logging
 import os
+import time
+import traceback
 from typing import List, Optional
 import openai
 from config import OPENAI_API_KEY, EMBEDDING_MODEL
@@ -18,6 +20,8 @@ class EmbeddingService:
     def generate_embedding(self, text: str) -> Optional[List[float]]:
         """Generate embedding vector for input text"""
         try:
+            start_time = time.time()
+
             if not text.strip():
                 logger.error("Empty text provided for embedding generation")
                 return None
@@ -25,15 +29,34 @@ class EmbeddingService:
             logger.info(f"Generating embedding for text of length: {len(text)} chars")
             logger.debug(f"Text preview (first 100 chars): {text[:100]}...")
 
-            response = openai.Embedding.create(
-                model=EMBEDDING_MODEL,
-                input=text
-            )
+            # Add retries for API call
+            max_retries = 3
+            retry_delay = 1  # seconds
 
-            embedding = response.data[0].embedding
-            logger.info(f"Successfully generated embedding vector of dimension {len(embedding)}")
-            return embedding
+            for attempt in range(max_retries):
+                try:
+                    api_start = time.time()
+                    response = openai.Embedding.create(
+                        model=EMBEDDING_MODEL,
+                        input=text
+                    )
+                    api_time = time.time() - api_start
+                    logger.info(f"OpenAI API call completed in {api_time:.2f}s")
+
+                    embedding = response.data[0].embedding
+                    total_time = time.time() - start_time
+                    logger.info(f"Successfully generated embedding vector of dimension {len(embedding)} in {total_time:.2f}s")
+                    return embedding
+
+                except Exception as api_error:
+                    logger.warning(f"API call attempt {attempt + 1} failed: {str(api_error)}")
+                    if attempt < max_retries - 1:
+                        logger.info(f"Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
+                        raise  # Re-raise the last error if all retries failed
 
         except Exception as e:
-            logger.error(f"Error generating embedding: {str(e)}", exc_info=True)
+            logger.error(f"Error generating embedding: {str(e)}\n{traceback.format_exc()}")
             return None

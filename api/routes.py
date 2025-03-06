@@ -1,8 +1,8 @@
 import uuid
 import logging
 import traceback
+import time
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
-from werkzeug.exceptions import BadRequest
 from services.pdf_processor import PDFProcessor
 from services.vector_store import VectorStore
 from models import Document
@@ -22,7 +22,12 @@ def index():
 def upload_document():
     """Upload and process a PDF document"""
     try:
+        start_time = time.time()
+        logger.info("=== Starting document upload process ===")
+
+        # Stage 1: File Validation
         if 'file' not in request.files:
+            logger.error("No file provided in request")
             if request.is_json:
                 return jsonify({"error": "No file provided"}), 400
             flash("No file provided", "error")
@@ -30,6 +35,7 @@ def upload_document():
 
         file = request.files['file']
         if not file.filename:
+            logger.error("Empty filename provided")
             if request.is_json:
                 return jsonify({"error": "No file selected"}), 400
             flash("No file selected", "error")
@@ -38,10 +44,12 @@ def upload_document():
         # Read file content
         content = file.read()
         file_size = len(content)
+        logger.info(f"Received file: {file.filename}, size: {file_size} bytes")
 
         # Validate file size
         if file_size > MAX_FILE_SIZE:
             error_msg = f"File size ({file_size} bytes) exceeds maximum limit ({MAX_FILE_SIZE} bytes)"
+            logger.error(error_msg)
             if request.is_json:
                 return jsonify({"error": error_msg}), 400
             flash(error_msg, "error")
@@ -50,13 +58,18 @@ def upload_document():
         # Validate file type
         if file.content_type not in ALLOWED_FILE_TYPES:
             error_msg = f"Invalid file type '{file.content_type}'. Only PDF files are allowed"
+            logger.error(error_msg)
             if request.is_json:
                 return jsonify({"error": error_msg}), 400
             flash(error_msg, "error")
             return redirect(url_for('api.index'))
 
-        # Process PDF
-        logger.info(f"Starting PDF processing for file: {file.filename}")
+        stage1_time = time.time() - start_time
+        logger.info(f"Stage 1 (Validation) completed in {stage1_time:.2f}s")
+
+        # Stage 2: PDF Text Extraction
+        logger.info("Starting PDF text extraction...")
+        stage2_start = time.time()
         text_content, error = PDFProcessor.extract_text(content)
 
         if error:
@@ -68,12 +81,20 @@ def upload_document():
 
         if not text_content:
             error_msg = "No text content could be extracted from the PDF"
+            logger.error(error_msg)
             if request.is_json:
                 return jsonify({"error": error_msg}), 400
             flash(error_msg, "error")
             return redirect(url_for('api.index'))
 
-        # Create document
+        stage2_time = time.time() - stage2_start
+        logger.info(f"Stage 2 (Text Extraction) completed in {stage2_time:.2f}s")
+        logger.info(f"Extracted text length: {len(text_content)} chars")
+
+        # Stage 3: Create document and prepare for vector store
+        logger.info("Starting document creation and vector store preparation...")
+        stage3_start = time.time()
+
         doc_id = str(uuid.uuid4())
         document = Document(
             id=doc_id,
@@ -85,15 +106,28 @@ def upload_document():
             }
         )
 
-        # Add to vector store
+        stage3_time = time.time() - stage3_start
+        logger.info(f"Stage 3 (Document Creation) completed in {stage3_time:.2f}s")
+
+        # Stage 4: Add to vector store
+        logger.info("Starting vector store operations...")
+        stage4_start = time.time()
+
         vector_store = VectorStore.get_instance()
         success, error_msg = vector_store.add_document(document)
 
         if not success:
+            logger.error(f"Vector store error: {error_msg}")
             if request.is_json:
                 return jsonify({"error": error_msg}), 500
             flash(error_msg, "error")
             return redirect(url_for('api.index'))
+
+        stage4_time = time.time() - stage4_start
+        total_time = time.time() - start_time
+
+        logger.info(f"Stage 4 (Vector Store) completed in {stage4_time:.2f}s")
+        logger.info(f"=== Document processing complete in {total_time:.2f}s ===")
 
         success_msg = "Document processed successfully"
         if request.is_json:
@@ -107,7 +141,8 @@ def upload_document():
         return redirect(url_for('api.index'))
 
     except Exception as e:
-        logger.error(f"Error processing upload: {traceback.format_exc()}")
+        error_msg = f"Error processing upload: {str(e)}"
+        logger.error(f"{error_msg}\n{traceback.format_exc()}")
         if request.is_json:
             return jsonify({"error": f"Internal server error: {str(e)}"}), 500
         flash(f"Internal server error: {str(e)}", "error")
