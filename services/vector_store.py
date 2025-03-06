@@ -34,23 +34,33 @@ class VectorStore:
     def add_document(self, document: Document) -> Tuple[bool, Optional[str]]:
         """Add document to vector store"""
         try:
-            logger.info(f"Generating embedding for document {document.id}")
+            logger.info(f"Starting document processing: {document.id}")
+            logger.info(f"Document content length: {len(document.content)} chars")
+            logger.info(f"Document metadata: {document.metadata}")
+
+            logger.info("Generating embedding...")
             embedding = self.embedding_service.generate_embedding(document.content)
             if embedding is None:
                 error_msg = "Failed to generate embedding for document"
                 logger.error(error_msg)
                 return False, error_msg
 
-            logger.info("Adding document embedding to FAISS index")
+            logger.info(f"Adding embedding to FAISS index (current size: {self.index.ntotal})")
             self.index.add(np.array([embedding], dtype=np.float32))
+            logger.info(f"New FAISS index size: {self.index.ntotal}")
+
             self.documents[document.id] = document
+            logger.info(f"Document added to in-memory store. Total documents: {len(self.documents)}")
+
+            logger.info("Persisting state to disk...")
             self._save_state()
-            logger.info(f"Successfully added document {document.id} to vector store")
+            logger.info("State successfully persisted")
+
             return True, None
 
         except Exception as e:
             error_msg = f"Error adding document to vector store: {str(e)}"
-            logger.error(error_msg)
+            logger.error(error_msg, exc_info=True)
             return False, error_msg
 
     def search(self, query: str, k: int = 3) -> Tuple[List[VectorSearchResult], Optional[str]]:
@@ -119,9 +129,11 @@ class VectorStore:
     def _save_state(self):
         """Save index and documents to disk"""
         try:
+            logger.info(f"Saving FAISS index to {FAISS_INDEX_PATH}")
             faiss.write_index(self.index, FAISS_INDEX_PATH)
-            logger.info(f"Saved FAISS index to {FAISS_INDEX_PATH}")
+            logger.info("FAISS index saved successfully")
 
+            logger.info(f"Saving document store to {DOCUMENT_STORE_PATH}")
             document_data = {
                 doc_id: {
                     "content": doc.content,
@@ -133,10 +145,11 @@ class VectorStore:
 
             with open(DOCUMENT_STORE_PATH, 'w') as f:
                 json.dump(document_data, f)
-            logger.info(f"Saved document store to {DOCUMENT_STORE_PATH}")
+            logger.info("Document store saved successfully")
 
         except Exception as e:
-            logger.error(f"Error saving vector store state: {str(e)}")
+            logger.error(f"Error saving vector store state: {str(e)}", exc_info=True)
+            raise
 
     def _load_state(self):
         """Load index and documents from disk"""
