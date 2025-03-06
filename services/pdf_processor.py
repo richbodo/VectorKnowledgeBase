@@ -24,7 +24,7 @@ class PDFProcessor:
             logger.info(f"PDF loaded successfully. Number of pages: {total_pages}")
 
             text_content = []
-            chunk_size = 5  # Process 5 pages at a time
+            chunk_size = 2  # Process 2 pages at a time to avoid timeout
 
             for chunk_start in range(0, total_pages, chunk_size):
                 chunk_end = min(chunk_start + chunk_size, total_pages)
@@ -50,8 +50,14 @@ class PDFProcessor:
                         text_content.append("")
                         continue
 
-                # Free up memory after each chunk
-                del page
+                    finally:
+                        # Explicitly clean up page object
+                        if 'page' in locals():
+                            del page
+
+                # Force garbage collection after each chunk
+                import gc
+                gc.collect()
 
             full_text = "\n".join(text_content)
             if not full_text.strip():
