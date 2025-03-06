@@ -8,6 +8,7 @@ import fitz  # PyMuPDF
 from typing import Tuple, Optional
 from io import BytesIO
 from contextlib import contextmanager
+import signal
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,7 @@ class PDFProcessor:
                 try:
                     # Get page and extract text
                     page = pdf_document[page_num]
+                    logger.debug(f"Page {page_num + 1} loaded into memory")
                     page_text = page.get_text()
 
                     if not page_text.strip():
@@ -107,7 +109,7 @@ class PDFProcessor:
                 finally:
                     # Clean up page resources
                     if 'page' in locals():
-                        page.close()
+                        del page
                     PDFProcessor.force_garbage_collection()
                     PDFProcessor.log_memory_usage(f"after_page_{page_num + 1}")
 
