@@ -257,27 +257,38 @@ def test_openai_connection():
 
         # Test embedding generation
         test_text = "This is a test of the OpenAI API connection."
+        success = False
+        error_details = None
+
         try:
             embedding = embedding_service.generate_embedding(test_text)
             success = embedding is not None
+            if success:
+                error_details = None
+            else:
+                error_details = "Embedding generation returned None"
         except Exception as e:
-            success = False
-            error_details = str(e)
+            error_details = {
+                'error_type': type(e).__name__,
+                'error_message': str(e)
+            }
+
+            # Check if it's an HTTP error with response details
             if hasattr(e, 'response'):
-                error_details = {
-                    'status_code': e.response.status_code if hasattr(e.response, 'status_code') else 'unknown',
-                    'error_type': type(e).__name__,
-                    'error_message': str(e),
-                    'response_text': e.response.text if hasattr(e.response, 'text') else 'no response text'
-                }
+                response = getattr(e, 'response')
+                error_details.update({
+                    'status_code': getattr(response, 'status_code', 'unknown'),
+                    'response_text': getattr(response, 'text', 'no response text'),
+                    'headers': dict(getattr(response, 'headers', {}))
+                })
 
         # Prepare diagnostic info
         diagnostic_info = {
             'api_key_info': key_info,
             'test_status': 'success' if success else 'failed',
-            'error_details': error_details if not success else None,
+            'error_details': error_details,
             'embedding_service_initialized': True,
-            'model': embedding_service.client.models if hasattr(embedding_service, 'client') else None
+            'model': embedding_service.client.model if hasattr(embedding_service, 'client') else None
         }
 
         return jsonify(diagnostic_info)
