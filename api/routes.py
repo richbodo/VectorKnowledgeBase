@@ -3,6 +3,7 @@ import uuid
 import logging
 import traceback
 import time
+from datetime import datetime
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from services.pdf_processor import PDFProcessor
 from services.vector_store import VectorStore
@@ -43,8 +44,10 @@ def query_documents():
                 "content": result.content,
                 "score": result.similarity_score,
                 "metadata": {
-                    "source": result.metadata.get("filename"),
-                    "section": f"Part {result.metadata.get('chunk_index', 0) + 1} of {result.metadata.get('total_chunks', 1)}"
+                    "source": f"Part {result.metadata.get('chunk_index', 0) + 1} of {result.metadata.get('total_chunks', 1)}",
+                    "file_type": result.metadata.get("content_type", "application/pdf"),
+                    "uploaded_at": result.metadata.get("created_at", datetime.utcnow().isoformat()),
+                    "file_size": f"{result.metadata.get('size', 0) / 1024 / 1024:.1f}MB"
                 }
             } for result in results]
         }
@@ -161,7 +164,8 @@ def upload_document():
             metadata={
                 "filename": file.filename,
                 "content_type": file.content_type,
-                "size": file_size
+                "size": file_size,
+                "created_at": datetime.utcnow().isoformat()
             }
         )
 
