@@ -3,6 +3,7 @@ import logging
 import faiss
 import numpy as np
 import os
+import time
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from models import Document, VectorSearchResult
@@ -16,6 +17,7 @@ class VectorStore:
 
     def __init__(self):
         try:
+            logger.info("Initializing vector store...")
             self.index = faiss.IndexFlatL2(VECTOR_DIMENSION)
             self.documents: Dict[str, Document] = {}
             self.embedding_service = EmbeddingService()
@@ -34,28 +36,43 @@ class VectorStore:
     def add_document(self, document: Document) -> Tuple[bool, Optional[str]]:
         """Add document to vector store"""
         try:
+            start_time = time.time()
             logger.info(f"Starting document processing: {document.id}")
             logger.info(f"Document content length: {len(document.content)} chars")
             logger.info(f"Document metadata: {document.metadata}")
 
+            # Stage 1: Generate embedding
             logger.info("Generating embedding...")
+            embedding_start = time.time()
             embedding = self.embedding_service.generate_embedding(document.content)
             if embedding is None:
                 error_msg = "Failed to generate embedding for document"
                 logger.error(error_msg)
                 return False, error_msg
+            embedding_time = time.time() - embedding_start
+            logger.info(f"Embedding generation completed in {embedding_time:.2f}s")
 
+            # Stage 2: Add to FAISS index
             logger.info(f"Adding embedding to FAISS index (current size: {self.index.ntotal})")
+            index_start = time.time()
             self.index.add(np.array([embedding], dtype=np.float32))
             logger.info(f"New FAISS index size: {self.index.ntotal}")
+            index_time = time.time() - index_start
+            logger.info(f"FAISS index update completed in {index_time:.2f}s")
 
+            # Stage 3: Add to document store
             self.documents[document.id] = document
             logger.info(f"Document added to in-memory store. Total documents: {len(self.documents)}")
 
+            # Stage 4: Persist state
             logger.info("Persisting state to disk...")
+            save_start = time.time()
             self._save_state()
-            logger.info("State successfully persisted")
+            save_time = time.time() - save_start
+            logger.info(f"State persistence completed in {save_time:.2f}s")
 
+            total_time = time.time() - start_time
+            logger.info(f"Document successfully added in {total_time:.2f}s")
             return True, None
 
         except Exception as e:

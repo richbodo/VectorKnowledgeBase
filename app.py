@@ -1,8 +1,6 @@
-import logging
 import os
+import logging
 from flask import Flask
-from api.routes import bp as api_bp
-from services.vector_store import init_vector_store
 
 # Configure logging
 logging.basicConfig(
@@ -23,17 +21,8 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET")
 
-    # Initialize vector store
-    try:
-        logger.info("Starting vector store initialization...")
-        init_vector_store()
-        logger.info("Vector store initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
-        # Log error but don't raise - let the app start anyway
-        # Individual endpoints will handle vector store failures
-
     # Register blueprints
+    from api.routes import bp as api_bp
     app.register_blueprint(api_bp)
 
     # Error handlers
@@ -44,11 +33,3 @@ def create_app():
 
     logger.info("Flask application configured successfully")
     return app
-
-from app import create_app
-
-app = create_app()
-
-if __name__ == "__main__":
-    # Start Flask development server
-    app.run(host='0.0.0.0', port=5000, debug=True)

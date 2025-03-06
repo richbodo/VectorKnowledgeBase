@@ -1,5 +1,7 @@
 import logging
 import time
+import traceback
+import gc
 from typing import Tuple, Optional
 from PyPDF2 import PdfReader
 from io import BytesIO
@@ -56,7 +58,6 @@ class PDFProcessor:
                             del page
 
                 # Force garbage collection after each chunk
-                import gc
                 gc.collect()
 
             full_text = "\n".join(text_content)
@@ -70,5 +71,5 @@ class PDFProcessor:
 
         except Exception as e:
             error_msg = f"Error processing PDF: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.error(f"{error_msg}\n{traceback.format_exc()}")
             return None, error_msg
