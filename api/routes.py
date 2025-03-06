@@ -2,6 +2,7 @@ import uuid
 import logging
 import traceback
 import time
+import os # Added import statement
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from services.pdf_processor import PDFProcessor
 from services.vector_store import VectorStore
@@ -208,3 +209,30 @@ def query_documents():
             return jsonify({"error": f"Internal server error: {str(e)}"}), 500
         flash(f"Internal server error: {str(e)}", "error")
         return redirect(url_for('api.index'))
+
+
+@bp.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint with resource monitoring"""
+    try:
+        import psutil
+        process = psutil.Process(os.getpid())
+        memory_info = process.memory_info()
+
+        health_data = {
+            'status': 'healthy',
+            'memory': {
+                'rss': f"{memory_info.rss / 1024 / 1024:.2f}MB",
+                'vms': f"{memory_info.vms / 1024 / 1024:.2f}MB",
+            },
+            'cpu_percent': process.cpu_percent(),
+            'worker_pid': os.getpid(),
+            'vector_store': {
+                'document_count': len(VectorStore.get_instance().documents),
+                'index_size': VectorStore.get_instance().index.ntotal
+            }
+        }
+        return jsonify(health_data)
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}", exc_info=True)
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
