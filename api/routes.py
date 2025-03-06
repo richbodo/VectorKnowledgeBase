@@ -56,13 +56,14 @@ def upload_document():
             return redirect(url_for('api.index'))
 
         # Process PDF
+        logger.info(f"Starting PDF processing for file: {file.filename}")
         text_content, error = PDFProcessor.extract_text(content)
 
         if error:
             logger.error(f"PDF processing error: {error}")
             if request.is_json:
                 return jsonify({"error": error}), 400
-            flash(error, "error")
+            flash(f"Error processing PDF: {error}", "error")
             return redirect(url_for('api.index'))
 
         if not text_content:
@@ -105,11 +106,6 @@ def upload_document():
         flash(success_msg, "success")
         return redirect(url_for('api.index'))
 
-    except BadRequest as e:
-        if request.is_json:
-            return jsonify({"error": str(e)}), 400
-        flash(str(e), "error")
-        return redirect(url_for('api.index'))
     except Exception as e:
         logger.error(f"Error processing upload: {traceback.format_exc()}")
         if request.is_json:
@@ -164,9 +160,9 @@ def query_documents():
 
             # Pass the results, query, and debug info back to the template
             return render_template('index.html', 
-                                results=results, 
-                                query=query, 
-                                debug_info=debug_info)
+                                   results=results, 
+                                   query=query, 
+                                   debug_info=debug_info)
 
         # If it's a GET request, just show the form
         return render_template('index.html', debug_info=debug_info)
