@@ -9,7 +9,19 @@
 <body>
     <div class="container py-4">
         <h1 class="mb-4">PDF Document Processing</h1>
-        
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <!-- Upload Section -->
         <div class="card mb-4">
             <div class="card-header">
@@ -27,7 +39,7 @@
         </div>
 
         <!-- Query Section -->
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header">
                 <h2 class="h5 mb-0">Query Documents</h2>
             </div>
@@ -35,12 +47,41 @@
                 <form action="{{ url_for('api.query_documents') }}" method="post">
                     <div class="mb-3">
                         <label for="query" class="form-label">Enter your query</label>
-                        <textarea class="form-control" id="query" name="query" rows="3" required></textarea>
+                        <textarea class="form-control" id="query" name="query" rows="3" required
+                                placeholder="Ask questions about your uploaded documents. For example:
+- What are the main topics discussed in the document?
+- Find sections related to [specific topic]
+- Summarize the key points"></textarea>
+                        <div class="form-text text-muted">
+                            Enter any natural language question about the content of your uploaded PDFs.
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-primary">Search</button>
                 </form>
             </div>
         </div>
+
+        <!-- Results Section -->
+        {% if results %}
+        <div class="card">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Search Results</h2>
+            </div>
+            <div class="card-body">
+                {% for result in results %}
+                <div class="mb-4">
+                    <h3 class="h6">Result from: {{ result.metadata.filename }}</h3>
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="mb-2">{{ result.content }}</p>
+                            <small class="text-muted">Similarity Score: {{ "%.2f"|format(result.similarity_score) }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </body>
 </html>
