@@ -14,6 +14,47 @@ import httpx
 logger = logging.getLogger(__name__)
 bp = Blueprint('api', __name__)
 
+@bp.route('/query', methods=['POST'])
+def query_documents():
+    """Query endpoint optimized for GPT Actions"""
+    try:
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+
+        data = request.get_json()
+        query = data.get('query', '').strip() if data else ''
+
+        if not query:
+            return jsonify({"error": "Query cannot be empty"}), 400
+
+        vector_store = VectorStore.get_instance()
+        results, error_msg = vector_store.search(
+            query=query,
+            k=3,  # Return top 3 most relevant results
+            similarity_threshold=0.1  # Lower threshold to get more potential matches
+        )
+
+        if error_msg:
+            return jsonify({"error": error_msg}), 500
+
+        response = {
+            "results": [{
+                "title": result.metadata.get("filename", "Unknown"),
+                "content": result.content,
+                "score": result.similarity_score,
+                "metadata": {
+                    "source": result.metadata.get("filename"),
+                    "section": f"Part {result.metadata.get('chunk_index', 0) + 1} of {result.metadata.get('total_chunks', 1)}"
+                }
+            } for result in results]
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        logger.error(f"Error processing query: {traceback.format_exc()}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
 @bp.route('/', methods=['GET'])
 def index():
     """Render the main page"""
@@ -146,67 +187,6 @@ def upload_document():
     except Exception as e:
         error_msg = f"Error processing upload: {str(e)}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
-        if request.is_json:
-            return jsonify({"error": f"Internal server error: {str(e)}"}), 500
-        flash(f"Internal server error: {str(e)}", "error")
-        return redirect(url_for('api.index'))
-
-@bp.route('/query', methods=['GET', 'POST'])
-def query_documents():
-    """Query the vector database"""
-    try:
-        vector_store = VectorStore.get_instance()
-        debug_info = vector_store.get_debug_info()
-
-        # Only process query if it's a POST request
-        if request.method == 'POST':
-            if request.is_json:
-                data = request.get_json()
-                query = data.get('query', '').strip() if data else ''
-            else:
-                query = request.form.get('query', '').strip()
-
-            if not query:
-                error_msg = "Query cannot be empty"
-                if request.is_json:
-                    return jsonify({"error": error_msg}), 400
-                flash(error_msg, "error")
-                return redirect(url_for('api.index'))
-
-            results, error_msg = vector_store.search(query)
-
-            if error_msg:
-                if request.is_json:
-                    return jsonify({"error": error_msg}), 500
-                flash(error_msg, "error")
-                return redirect(url_for('api.index'))
-
-            if request.is_json:
-                return jsonify({
-                    "results": [{
-                        "content": result.content,
-                        "similarity_score": result.similarity_score,
-                        "metadata": result.metadata
-                    } for result in results],
-                    "message": "Query processed successfully"
-                })
-
-            if not results:
-                flash("No matching results found", "warning")
-            else:
-                flash("Query processed successfully", "success")
-
-            # Pass the results, query, and debug info back to the template
-            return render_template('index.html', 
-                                   results=results, 
-                                   query=query, 
-                                   debug_info=debug_info)
-
-        # If it's a GET request, just show the form
-        return render_template('index.html', debug_info=debug_info)
-
-    except Exception as e:
-        logger.error(f"Error processing query: {traceback.format_exc()}")
         if request.is_json:
             return jsonify({"error": f"Internal server error: {str(e)}"}), 500
         flash(f"Internal server error: {str(e)}", "error")
