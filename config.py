@@ -1,7 +1,9 @@
 import os
 
 # OpenAI Configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise ValueError("OPENAI_API_KEY environment variable is not set")
 EMBEDDING_MODEL = "text-embedding-ada-002"
 VECTOR_DIMENSION = 1536  # Dimension of OpenAI embeddings
 

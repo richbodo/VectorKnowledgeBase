@@ -10,10 +10,16 @@ logger = logging.getLogger(__name__)
 
 class EmbeddingService:
     def __init__(self):
+        """Initialize the OpenAI client with proper error handling"""
         logger.info("Initializing EmbeddingService")
         if not OPENAI_API_KEY:
             logger.error("OPENAI_API_KEY not found in environment")
             raise ValueError("OPENAI_API_KEY not configured")
+
+        # Log key presence (not the actual key)
+        logger.info("OpenAI API key found, initializing client...")
+        logger.debug(f"API key starts with: {OPENAI_API_KEY[:4]}...")
+
         self.client = OpenAI(api_key=OPENAI_API_KEY)
         logger.info(f"Using embedding model: {EMBEDDING_MODEL}")
 
