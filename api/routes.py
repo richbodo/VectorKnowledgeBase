@@ -14,7 +14,9 @@ bp = Blueprint('api', __name__)
 @bp.route('/', methods=['GET'])
 def index():
     """Render the main page"""
-    return render_template('index.html')
+    vector_store = VectorStore.get_instance()
+    debug_info = vector_store.get_debug_info()
+    return render_template('index.html', debug_info=debug_info)
 
 @bp.route('/upload', methods=['POST'])
 def upload_document():
@@ -84,10 +86,9 @@ def upload_document():
 
         # Add to vector store
         vector_store = VectorStore.get_instance()
-        success = vector_store.add_document(document)
+        success, error_msg = vector_store.add_document(document)
 
         if not success:
-            error_msg = "Failed to process document - vector store error"
             if request.is_json:
                 return jsonify({"error": error_msg}), 500
             flash(error_msg, "error")
@@ -120,6 +121,9 @@ def upload_document():
 def query_documents():
     """Query the vector database"""
     try:
+        vector_store = VectorStore.get_instance()
+        debug_info = vector_store.get_debug_info()
+
         # Only process query if it's a POST request
         if request.method == 'POST':
             if request.is_json:
@@ -135,12 +139,9 @@ def query_documents():
                 flash(error_msg, "error")
                 return redirect(url_for('api.index'))
 
-            vector_store = VectorStore.get_instance()
-            results = vector_store.search(query)
+            results, error_msg = vector_store.search(query)
 
-            if results is None:
-                logger.error("Vector store search returned None")
-                error_msg = "Failed to perform vector search"
+            if error_msg:
                 if request.is_json:
                     return jsonify({"error": error_msg}), 500
                 flash(error_msg, "error")
@@ -161,11 +162,14 @@ def query_documents():
             else:
                 flash("Query processed successfully", "success")
 
-            # Pass both the results and the original query back to the template
-            return render_template('index.html', results=results, query=query)
+            # Pass the results, query, and debug info back to the template
+            return render_template('index.html', 
+                                results=results, 
+                                query=query, 
+                                debug_info=debug_info)
 
         # If it's a GET request, just show the form
-        return render_template('index.html')
+        return render_template('index.html', debug_info=debug_info)
 
     except BadRequest as e:
         if request.is_json:
