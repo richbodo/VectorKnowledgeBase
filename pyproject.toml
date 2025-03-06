@@ -22,4 +22,5 @@ dependencies = [
     "flask-wtf>=1.2.2",
     "psutil>=7.0.0",
     "pymupdf>=1.25.3",
+    "chromadb>=0.6.3",
 ]
