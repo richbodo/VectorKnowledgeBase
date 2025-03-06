@@ -167,11 +167,6 @@ def query_documents():
         # If it's a GET request, just show the form
         return render_template('index.html', debug_info=debug_info)
 
-    except BadRequest as e:
-        if request.is_json:
-            return jsonify({"error": str(e)}), 400
-        flash(str(e), "error")
-        return redirect(url_for('api.index'))
     except Exception as e:
         logger.error(f"Error processing query: {traceback.format_exc()}")
         if request.is_json:
