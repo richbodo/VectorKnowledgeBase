@@ -4,9 +4,8 @@ import traceback
 import gc
 import psutil
 import os
-import signal
+import fitz  # PyMuPDF
 from typing import Tuple, Optional
-from PyPDF2 import PdfReader
 from io import BytesIO
 from contextlib import contextmanager
 
@@ -20,14 +19,12 @@ def timeout(seconds):
     def handler(signum, frame):
         raise TimeoutException("Operation timed out")
 
-    # Register the signal function handler
     signal.signal(signal.SIGALRM, handler)
     signal.alarm(seconds)
 
     try:
         yield
     finally:
-        # Disable the alarm
         signal.alarm(0)
 
 class PDFProcessor:
@@ -57,7 +54,7 @@ class PDFProcessor:
     @staticmethod
     def extract_text(file_content: bytes) -> Tuple[Optional[str], Optional[str]]:
         """
-        Extract text content from a PDF file with memory management and timeouts
+        Extract text content from a PDF file using PyMuPDF
         Returns: Tuple[content, error_message]
         """
         try:
@@ -66,16 +63,17 @@ class PDFProcessor:
             logger.info(f"Input PDF size: {len(file_content)} bytes")
             PDFProcessor.log_memory_usage("start")
 
-            pdf_file = BytesIO(file_content)
-            pdf_reader = PdfReader(pdf_file)
-            total_pages = len(pdf_reader.pages)
+            # Load PDF from memory buffer
+            memory_pdf = BytesIO(file_content)
+            pdf_document = fitz.open(stream=memory_pdf, filetype="pdf")
+            total_pages = len(pdf_document)
             logger.info(f"PDF loaded successfully. Number of pages: {total_pages}")
 
             text_content = []
 
             for page_num in range(total_pages):
                 chunk_start = time.time()
-                logger.info(f"Starting page {page_num + 1}/{total_pages}...")
+                logger.info(f"Processing page {page_num + 1}/{total_pages}...")
                 PDFProcessor.log_memory_usage(f"before_page_{page_num + 1}")
 
                 # Check memory limit before processing page
@@ -90,38 +88,35 @@ class PDFProcessor:
                         return None, error_msg
 
                 try:
-                    # Load and process single page with timeout
-                    with timeout(PDFProcessor.PAGE_TIMEOUT):
-                        page = pdf_reader.pages[page_num]
-                        logger.debug(f"Page {page_num + 1} loaded into memory")
+                    # Get page and extract text
+                    page = pdf_document[page_num]
+                    page_text = page.get_text()
 
-                        # Extract text
-                        page_text = page.extract_text()
+                    if not page_text.strip():
+                        logger.warning(f"Page {page_num + 1} appears to be empty or unreadable")
+                        text_content.append("")
+                    else:
+                        text_content.append(page_text)
+                        logger.info(f"Extracted text from page {page_num + 1}, length: {len(page_text)} chars")
 
-                        if not page_text.strip():
-                            logger.warning(f"Page {page_num + 1} appears to be empty or unreadable")
-                            text_content.append("")
-                        else:
-                            text_content.append(page_text)
-                            logger.info(f"Extracted text from page {page_num + 1}, length: {len(page_text)} chars")
-
-                except TimeoutException:
-                    logger.error(f"Timeout extracting text from page {page_num + 1}")
-                    text_content.append("")
-                    continue
                 except Exception as page_error:
                     logger.error(f"Error extracting text from page {page_num + 1}: {str(page_error)}\n{traceback.format_exc()}")
                     text_content.append("")
                     continue
+
                 finally:
-                    # Explicit cleanup
+                    # Clean up page resources
                     if 'page' in locals():
-                        del page
+                        page.close()
                     PDFProcessor.force_garbage_collection()
                     PDFProcessor.log_memory_usage(f"after_page_{page_num + 1}")
 
                 chunk_time = time.time() - chunk_start
                 logger.info(f"Page {page_num + 1} processing completed in {chunk_time:.2f}s")
+
+            # Close the PDF document
+            pdf_document.close()
+            memory_pdf.close()
 
             full_text = "\n".join(text_content)
             if not full_text.strip():
