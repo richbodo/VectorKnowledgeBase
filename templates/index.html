@@ -98,7 +98,7 @@
                 <h2 class="h5 mb-0">Query Documents</h2>
             </div>
             <div class="card-body">
-                <form action="{{ url_for('api.query_documents') }}" method="post">
+                <form id="searchForm" onsubmit="submitSearch(event)">
                     <div class="mb-3">
                         <label for="query" class="form-label">Enter your query</label>
                         <textarea class="form-control" id="query" name="query" rows="3" required
@@ -112,6 +112,39 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Search</button>
                 </form>
+                
+                <script>
+                function submitSearch(event) {
+                    event.preventDefault();
+                    const query = document.getElementById('query').value;
+                    
+                    fetch('{{ url_for('api.query_documents') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ query: query })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert('Error: ' + data.error);
+                        } else {
+                            // Redirect to results display or update the page with results
+                            if (data.results && data.results.length > 0) {
+                                // For now, we'll just reload the page to display results
+                                window.location.href = '/?query=' + encodeURIComponent(query);
+                            } else {
+                                alert('No results found for your query.');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while processing your request.');
+                    });
+                }
+                </script>
             </div>
         </div>
 

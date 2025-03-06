@@ -60,7 +60,22 @@ def index():
     """Render the main page"""
     vector_store = VectorStore.get_instance()
     debug_info = vector_store.get_debug_info()
-    return render_template('index.html', debug_info=debug_info)
+    
+    # Get query parameter if it exists
+    query = request.args.get('query', '')
+    results = []
+    
+    # If query is provided, perform search
+    if query:
+        results, error_msg = vector_store.search(
+            query=query,
+            k=3,
+            similarity_threshold=0.1
+        )
+        if error_msg:
+            flash(error_msg, "error")
+    
+    return render_template('index.html', debug_info=debug_info, query=query, results=results)
 
 @bp.route('/upload', methods=['POST'])
 def upload_document():
