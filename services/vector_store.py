@@ -109,8 +109,8 @@ class VectorStore:
             logger.error(error_msg)
             return False, error_msg
 
-    def search(self, query: str, k: int = 3) -> Tuple[List[VectorSearchResult], Optional[str]]:
-        """Search for similar documents"""
+    def search(self, query: str, k: int = 3, similarity_threshold: float = 0.3) -> Tuple[List[VectorSearchResult], Optional[str]]:
+        """Search for similar document chunks"""
         try:
             if not self.documents:
                 logger.warning("No documents in vector store")
@@ -119,7 +119,7 @@ class VectorStore:
             # Query ChromaDB
             results = self.collection.query(
                 query_texts=[query],
-                n_results=k,
+                n_results=k * 2,  # Request more results to account for filtering
                 include=["documents", "metadatas", "distances"]
             )
 
@@ -129,29 +129,46 @@ class VectorStore:
             search_results = []
             seen_docs = set()
 
-            for i, metadata in enumerate(results["metadatas"][0]):
-                doc_id = metadata["document_id"]
+            for i, (chunk_text, metadata, distance) in enumerate(zip(
+                results["documents"][0],
+                results["metadatas"][0],
+                results["distances"][0]
+            )):
+                # Convert distance to similarity score (ChromaDB uses cosine distance)
+                similarity = 1 - distance
 
-                # Skip if we already included this document
-                if doc_id in seen_docs:
+                # Filter out low similarity matches
+                if similarity < similarity_threshold:
                     continue
 
+                doc_id = metadata["document_id"]
                 doc = self.documents[doc_id]
-                # Convert distance to similarity score (ChromaDB uses cosine distance)
-                similarity = 1 - results["distances"][0][i]
 
-                search_results.append(
-                    VectorSearchResult(
-                        document_id=doc.id,
-                        content=doc.content,
-                        similarity_score=similarity,
-                        metadata=doc.metadata
-                    )
+                # Add context about which part of the document this is
+                chunk_context = f"(Part {metadata['chunk_index'] + 1} of {metadata['total_chunks']})"
+
+                result = VectorSearchResult(
+                    document_id=doc.id,
+                    content=f"{chunk_text}\n{chunk_context}",
+                    similarity_score=similarity,
+                    metadata={
+                        **doc.metadata,
+                        "chunk_index": metadata["chunk_index"],
+                        "total_chunks": metadata["total_chunks"]
+                    }
                 )
-                seen_docs.add(doc_id)
+
+                search_results.append(result)
 
                 if len(search_results) >= k:
                     break
+
+            # Sort by similarity score
+            search_results.sort(key=lambda x: x.similarity_score, reverse=True)
+
+            if not search_results:
+                logger.info("No results met the similarity threshold")
+                return [], "No relevant matches found"
 
             return search_results, None
 
@@ -193,7 +210,7 @@ class VectorStore:
                         id=doc_id,
                         content="",  # Will be populated from chunks
                         metadata={k: v for k, v in metadata.items() 
-                                if k not in ["document_id", "chunk_index", "total_chunks"]},
+                                 if k not in ["document_id", "chunk_index", "total_chunks"]},
                         created_at=datetime.now()  # Default to now if not stored
                     )
 
