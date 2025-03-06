@@ -2,6 +2,8 @@ import logging
 import time
 import traceback
 import gc
+import psutil
+import os
 from typing import Tuple, Optional
 from PyPDF2 import PdfReader
 from io import BytesIO
@@ -26,39 +28,52 @@ class PDFProcessor:
             logger.info(f"PDF loaded successfully. Number of pages: {total_pages}")
 
             text_content = []
-            chunk_size = 2  # Process 2 pages at a time to avoid timeout
+            chunk_size = 1  # Process one page at a time
 
-            for chunk_start in range(0, total_pages, chunk_size):
-                chunk_end = min(chunk_start + chunk_size, total_pages)
-                logger.info(f"Processing chunk: pages {chunk_start + 1} to {chunk_end}")
+            def log_memory_usage():
+                process = psutil.Process(os.getpid())
+                memory_info = process.memory_info()
+                logger.info(f"Memory usage - RSS: {memory_info.rss / 1024 / 1024:.2f}MB, VMS: {memory_info.vms / 1024 / 1024:.2f}MB")
 
-                for i in range(chunk_start, chunk_end):
-                    page_start_time = time.time()
-                    logger.info(f"Starting page {i+1}/{total_pages}...")
+            for page_num in range(total_pages):
+                chunk_start = time.time()
+                logger.info(f"Starting page {page_num + 1}/{total_pages}...")
+                log_memory_usage()
 
-                    try:
-                        page = pdf_reader.pages[i]
-                        logger.debug(f"Page {i+1} loaded into memory")
+                try:
+                    # Load and process single page
+                    page = pdf_reader.pages[page_num]
+                    logger.debug(f"Page {page_num + 1} loaded into memory")
 
-                        page_text = page.extract_text()
-                        text_content.append(page_text)
+                    # Extract text with timeout protection
+                    page_text = page.extract_text()
 
-                        page_time = time.time() - page_start_time
-                        logger.info(f"Extracted text from page {i+1}, length: {len(page_text)} chars, took {page_time:.2f}s")
-
-                    except Exception as page_error:
-                        logger.error(f"Error extracting text from page {i+1}: {str(page_error)}", exc_info=True)
-                        # Continue with next page instead of failing completely
+                    if not page_text.strip():
+                        logger.warning(f"Page {page_num + 1} appears to be empty or unreadable")
                         text_content.append("")
-                        continue
+                    else:
+                        text_content.append(page_text)
+                        logger.info(f"Extracted text from page {page_num + 1}, length: {len(page_text)} chars")
 
-                    finally:
-                        # Explicitly clean up page object
-                        if 'page' in locals():
-                            del page
+                except Exception as page_error:
+                    logger.error(f"Error extracting text from page {page_num + 1}: {str(page_error)}\n{traceback.format_exc()}")
+                    # Continue with next page instead of failing completely
+                    text_content.append("")
+                    continue
 
-                # Force garbage collection after each chunk
+                finally:
+                    # Explicit cleanup
+                    if 'page' in locals():
+                        del page
+                    gc.collect()
+                    log_memory_usage()
+
+                chunk_time = time.time() - chunk_start
+                logger.info(f"Page {page_num + 1} processing completed in {chunk_time:.2f}s")
+
+                # Force garbage collection between pages
                 gc.collect()
+                gc.collect()  # Double collection to ensure cleanup of circular references
 
             full_text = "\n".join(text_content)
             if not full_text.strip():
