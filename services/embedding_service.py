@@ -5,6 +5,7 @@ import traceback
 from typing import List, Optional
 from openai import OpenAI
 from config import OPENAI_API_KEY, EMBEDDING_MODEL
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -59,21 +60,45 @@ class EmbeddingService:
                     logger.info(f"Successfully generated embedding vector of dimension {len(embedding)} in {total_time:.2f}s")
                     return embedding
 
-                except Exception as api_error:
-                    error_msg = str(api_error)
-                    if "429" in error_msg:  # Rate limit error
-                        error_msg = "OpenAI API rate limit exceeded. Please try again later."
-                    logger.warning(f"API call attempt {attempt + 1} failed: {error_msg}\n{traceback.format_exc()}")
+                except httpx.HTTPStatusError as http_error:
+                    status_code = http_error.response.status_code
+                    error_msg = http_error.response.text
+                    logger.warning(
+                        f"HTTP error on attempt {attempt + 1}: Status {status_code}\n"
+                        f"Response: {error_msg}\n"
+                        f"Headers: {dict(http_error.response.headers)}"
+                    )
+
+                    if status_code == 429:  # Rate limit error
+                        error_msg = (
+                            "OpenAI API rate limit exceeded. "
+                            "Please try again later or check your API quota."
+                        )
+                    elif status_code == 401:  # Authentication error
+                        error_msg = "Invalid OpenAI API key or authentication failed."
+                    elif status_code == 500:  # Server error
+                        error_msg = "OpenAI API server error. Please try again later."
+
                     if attempt < max_retries - 1:
                         logger.info(f"Retrying in {retry_delay} seconds...")
                         time.sleep(retry_delay)
                         retry_delay *= 2  # Exponential backoff
                     else:
-                        raise  # Re-raise the last error if all retries failed
+                        raise ValueError(error_msg) from http_error
+
+                except Exception as api_error:
+                    logger.warning(
+                        f"API call attempt {attempt + 1} failed: {str(api_error)}\n"
+                        f"{traceback.format_exc()}"
+                    )
+                    if attempt < max_retries - 1:
+                        logger.info(f"Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
+                        raise
 
         except Exception as e:
             error_msg = str(e)
-            if "429" in error_msg:  # Rate limit error
-                error_msg = "OpenAI API rate limit exceeded. Please try again later."
             logger.error(f"Error generating embedding: {error_msg}\n{traceback.format_exc()}")
-            return None
+            raise  # Re-raise the error to be handled by the caller

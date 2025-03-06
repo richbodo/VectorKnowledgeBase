@@ -1,13 +1,15 @@
+import os
 import uuid
 import logging
 import traceback
 import time
-import os
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from services.pdf_processor import PDFProcessor
 from services.vector_store import VectorStore
+from services.embedding_service import EmbeddingService
 from models import Document
 from config import MAX_FILE_SIZE, ALLOWED_FILE_TYPES
+import httpx
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('api', __name__)
@@ -196,9 +198,9 @@ def query_documents():
 
             # Pass the results, query, and debug info back to the template
             return render_template('index.html', 
-                                   results=results, 
-                                   query=query, 
-                                   debug_info=debug_info)
+                               results=results, 
+                               query=query, 
+                               debug_info=debug_info)
 
         # If it's a GET request, just show the form
         return render_template('index.html', debug_info=debug_info)
@@ -209,7 +211,6 @@ def query_documents():
             return jsonify({"error": f"Internal server error: {str(e)}"}), 500
         flash(f"Internal server error: {str(e)}", "error")
         return redirect(url_for('api.index'))
-
 
 @bp.route('/health', methods=['GET'])
 def health_check():
@@ -241,11 +242,6 @@ def health_check():
 def test_openai_connection():
     """Test OpenAI API connection and display diagnostic information"""
     try:
-        from services.embedding_service import EmbeddingService
-
-        # Initialize embedding service
-        embedding_service = EmbeddingService()
-
         # Get API key info (safely)
         api_key = os.environ.get("OPENAI_API_KEY", "")
         key_info = {
@@ -255,39 +251,45 @@ def test_openai_connection():
             'format_valid': api_key.startswith('sk-') if api_key else False
         }
 
-        # Test embedding generation
+        # Initialize embedding service and try a test call
         test_text = "This is a test of the OpenAI API connection."
-        success = False
         error_details = None
+        embedding = None
 
         try:
+            embedding_service = EmbeddingService()
+            logger.info("Embedding service initialized successfully")
+
+            # Try to generate an embedding
             embedding = embedding_service.generate_embedding(test_text)
-            success = embedding is not None
-            if success:
-                error_details = None
-            else:
-                error_details = "Embedding generation returned None"
+            logger.info("Test embedding generation completed")
+
+        except ValueError as ve:
+            error_details = {
+                'error_type': 'Configuration Error',
+                'error_message': str(ve)
+            }
+        except httpx.HTTPStatusError as http_error:
+            error_details = {
+                'error_type': 'HTTP Error',
+                'status_code': http_error.response.status_code,
+                'error_message': http_error.response.text,
+                'headers': dict(http_error.response.headers)
+            }
         except Exception as e:
             error_details = {
                 'error_type': type(e).__name__,
-                'error_message': str(e)
+                'error_message': str(e),
+                'traceback': traceback.format_exc()
             }
-
-            # Check if it's an HTTP error with response details
-            if hasattr(e, 'response'):
-                response = getattr(e, 'response')
-                error_details.update({
-                    'status_code': getattr(response, 'status_code', 'unknown'),
-                    'response_text': getattr(response, 'text', 'no response text'),
-                    'headers': dict(getattr(response, 'headers', {}))
-                })
 
         # Prepare diagnostic info
         diagnostic_info = {
             'api_key_info': key_info,
-            'test_status': 'success' if success else 'failed',
+            'test_status': 'success' if embedding is not None else 'failed',
             'error_details': error_details,
-            'embedding_service_initialized': True
+            'embedding_generated': embedding is not None,
+            'embedding_dimension': len(embedding) if embedding else None
         }
 
         return jsonify(diagnostic_info)
