@@ -287,8 +287,7 @@ def test_openai_connection():
             'api_key_info': key_info,
             'test_status': 'success' if success else 'failed',
             'error_details': error_details,
-            'embedding_service_initialized': True,
-            'model': embedding_service.client.model if hasattr(embedding_service, 'client') else None
+            'embedding_service_initialized': True
         }
 
         return jsonify(diagnostic_info)
