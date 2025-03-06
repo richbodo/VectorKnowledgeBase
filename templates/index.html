@@ -99,6 +99,11 @@
 Document Count: {{ debug_info.document_count }}
 Index Size: {{ debug_info.index_size }}
 
+{% if debug_info.last_api_error %}
+API Error:
+{{ debug_info.last_api_error }}
+{% endif %}
+
 Documents:
 {% for doc in debug_info.documents %}
 - ID: {{ doc.id }}

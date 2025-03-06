@@ -21,6 +21,7 @@ class VectorStore:
             self.index = faiss.IndexFlatL2(VECTOR_DIMENSION)
             self.documents: Dict[str, Document] = {}
             self.embedding_service = EmbeddingService()
+            self.last_api_error = None  # Track last API error
             self._load_state()
             logger.info(f"Vector store initialized with {len(self.documents)} documents")
         except Exception as e:
@@ -47,8 +48,10 @@ class VectorStore:
             embedding = self.embedding_service.generate_embedding(document.content)
             if embedding is None:
                 error_msg = "Failed to generate embedding for document"
+                self.last_api_error = error_msg  # Store API error
                 logger.error(error_msg)
                 return False, error_msg
+
             embedding_time = time.time() - embedding_start
             logger.info(f"Embedding generation completed in {embedding_time:.2f}s")
 
@@ -73,6 +76,7 @@ class VectorStore:
 
             total_time = time.time() - start_time
             logger.info(f"Document successfully added in {total_time:.2f}s")
+            self.last_api_error = None  # Clear any previous error on success
             return True, None
 
         except Exception as e:
@@ -132,6 +136,7 @@ class VectorStore:
         return {
             "document_count": len(self.documents),
             "index_size": self.index.ntotal,
+            "last_api_error": self.last_api_error,  # Include API error in debug info
             "documents": [
                 {
                     "id": doc_id,
