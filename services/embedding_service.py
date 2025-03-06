@@ -5,7 +5,6 @@ import traceback
 from typing import List, Optional, Tuple
 from openai import OpenAI
 from config import OPENAI_API_KEY, EMBEDDING_MODEL
-import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -33,27 +32,31 @@ class EmbeddingService:
         """Test the OpenAI API connection"""
         try:
             # Make a minimal API call to test the connection
+            test_text = "test"
+            logger.info(f"Testing API connection with text: {test_text}")
+
             response = self.client.embeddings.create(
                 model=EMBEDDING_MODEL,
-                input="test"
+                input=test_text
             )
-            logger.info("OpenAI API connection test successful")
-            return True, None
+
+            # Verify we got a valid response
+            if hasattr(response, 'data') and len(response.data) > 0:
+                logger.info("OpenAI API connection test successful")
+                return True, None
+            else:
+                error_msg = "API response missing embedding data"
+                logger.error(error_msg)
+                return False, error_msg
+
         except Exception as e:
             error_msg = str(e)
-            if isinstance(e, httpx.HTTPStatusError):
-                if e.response.status_code == 401:
-                    error_msg = "Invalid API key or unauthorized access"
-                elif e.response.status_code == 429:
-                    error_msg = "API rate limit exceeded or quota exhausted"
             logger.error(f"OpenAI API connection test failed: {error_msg}")
             return False, error_msg
 
     def generate_embedding(self, text: str) -> Optional[List[float]]:
         """Generate embedding vector for input text"""
         try:
-            start_time = time.time()
-
             if not text.strip():
                 logger.error("Empty text provided for embedding generation")
                 return None
@@ -61,67 +64,16 @@ class EmbeddingService:
             logger.info(f"Generating embedding for text of length: {len(text)} chars")
             logger.debug(f"Text preview (first 100 chars): {text[:100]}...")
 
-            # Add retries for API call
-            max_retries = 3
-            retry_delay = 1  # seconds
+            # Simple direct API call without retries
+            response = self.client.embeddings.create(
+                model=EMBEDDING_MODEL,
+                input=text
+            )
 
-            for attempt in range(max_retries):
-                try:
-                    api_start = time.time()
-                    logger.debug(f"Making API call attempt {attempt + 1}")
-
-                    response = self.client.embeddings.create(
-                        model=EMBEDDING_MODEL,
-                        input=text
-                    )
-                    api_time = time.time() - api_start
-                    logger.info(f"OpenAI API call completed in {api_time:.2f}s")
-
-                    # Debug log the response structure
-                    logger.debug(f"API Response structure: {response}")
-
-                    embedding = response.data[0].embedding
-                    total_time = time.time() - start_time
-                    logger.info(f"Successfully generated embedding vector of dimension {len(embedding)} in {total_time:.2f}s")
-                    return embedding
-
-                except httpx.HTTPStatusError as http_error:
-                    status_code = http_error.response.status_code
-                    error_msg = http_error.response.text
-                    logger.warning(
-                        f"HTTP error on attempt {attempt + 1}: Status {status_code}\n"
-                        f"Response: {error_msg}\n"
-                        f"Headers: {dict(http_error.response.headers)}"
-                    )
-
-                    if status_code == 401:
-                        raise ValueError("Invalid API key or unauthorized access") from http_error
-                    elif status_code == 429:
-                        error_msg = (
-                            "OpenAI API rate limit exceeded or quota exhausted. "
-                            "Please verify your API key and plan status."
-                        )
-                    elif status_code == 500:
-                        error_msg = "OpenAI API server error. Please try again later."
-
-                    if attempt < max_retries - 1:
-                        logger.info(f"Retrying in {retry_delay} seconds...")
-                        time.sleep(retry_delay)
-                        retry_delay *= 2  # Exponential backoff
-                    else:
-                        raise ValueError(error_msg) from http_error
-
-                except Exception as api_error:
-                    logger.warning(
-                        f"API call attempt {attempt + 1} failed: {str(api_error)}\n"
-                        f"{traceback.format_exc()}"
-                    )
-                    if attempt < max_retries - 1:
-                        logger.info(f"Retrying in {retry_delay} seconds...")
-                        time.sleep(retry_delay)
-                        retry_delay *= 2  # Exponential backoff
-                    else:
-                        raise
+            # Extract embedding from response
+            embedding = response.data[0].embedding
+            logger.info(f"Successfully generated embedding vector of dimension {len(embedding)}")
+            return embedding
 
         except Exception as e:
             error_msg = str(e)
