@@ -156,7 +156,13 @@ def query_documents():
                     "message": "Query processed successfully"
                 })
 
-            return render_template('index.html', results=results)
+            if not results:
+                flash("No matching results found", "warning")
+            else:
+                flash("Query processed successfully", "success")
+
+            # Pass both the results and the original query back to the template
+            return render_template('index.html', results=results, query=query)
 
         # If it's a GET request, just show the form
         return render_template('index.html')
