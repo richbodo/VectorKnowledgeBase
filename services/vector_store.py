@@ -12,6 +12,33 @@ from config import VECTOR_DIMENSION, FAISS_INDEX_PATH, DOCUMENT_STORE_PATH
 
 logger = logging.getLogger(__name__)
 
+def chunk_text(text: str, max_chunk_size: int = 4000) -> List[str]:
+    """Split text into smaller chunks, trying to break at sentence boundaries."""
+    # Split into sentences (rough approximation)
+    sentences = text.replace('\n', ' ').split('.')
+    chunks = []
+    current_chunk = []
+    current_size = 0
+
+    for sentence in sentences:
+        sentence = sentence.strip() + '.'  # Restore the period
+        # Rough estimate: 1 token ≈ 4 characters
+        sentence_size = len(sentence) // 4
+
+        if current_size + sentence_size > max_chunk_size:
+            if current_chunk:  # Save current chunk if it exists
+                chunks.append(' '.join(current_chunk))
+            current_chunk = [sentence]
+            current_size = sentence_size
+        else:
+            current_chunk.append(sentence)
+            current_size += sentence_size
+
+    if current_chunk:  # Add the last chunk
+        chunks.append(' '.join(current_chunk))
+
+    return chunks
+
 class VectorStore:
     _instance = None
 
@@ -21,7 +48,7 @@ class VectorStore:
             self.index = faiss.IndexFlatL2(VECTOR_DIMENSION)
             self.documents: Dict[str, Document] = {}
             self.embedding_service = EmbeddingService()
-            self.last_api_error = None  # Track last API error
+            self.last_api_error = None
             self._load_state()
             logger.info(f"Vector store initialized with {len(self.documents)} documents")
         except Exception as e:
@@ -35,86 +62,79 @@ class VectorStore:
         return cls._instance
 
     def add_document(self, document: Document) -> Tuple[bool, Optional[str]]:
-        """Add document to vector store"""
+        """Add document to vector store with chunking"""
         try:
             start_time = time.time()
             logger.info(f"Starting document processing: {document.id}")
             logger.info(f"Document content length: {len(document.content)} chars")
-            logger.info(f"Document metadata: {document.metadata}")
 
-            # Stage 1: Generate embedding
-            logger.info("Generating embedding...")
-            embedding_start = time.time()
-            embedding = self.embedding_service.generate_embedding(document.content)
-            if embedding is None:
-                error_msg = "Failed to generate embedding for document"
-                self.last_api_error = error_msg  # Store API error
-                logger.error(error_msg)
-                return False, error_msg
+            # Split document into chunks
+            chunks = chunk_text(document.content)
+            logger.info(f"Split document into {len(chunks)} chunks")
 
-            embedding_time = time.time() - embedding_start
-            logger.info(f"Embedding generation completed in {embedding_time:.2f}s")
+            embeddings = []
+            for i, chunk in enumerate(chunks):
+                logger.info(f"Processing chunk {i+1}/{len(chunks)}")
+                embedding = self.embedding_service.generate_embedding(chunk)
+                if embedding is None:
+                    error_msg = f"Failed to generate embedding for chunk {i+1}"
+                    logger.error(error_msg)
+                    return False, error_msg
+                embeddings.append(embedding)
 
-            # Stage 2: Add to FAISS index
-            logger.info(f"Adding embedding to FAISS index (current size: {self.index.ntotal})")
-            index_start = time.time()
-            self.index.add(np.array([embedding], dtype=np.float32))
-            logger.info(f"New FAISS index size: {self.index.ntotal}")
-            index_time = time.time() - index_start
-            logger.info(f"FAISS index update completed in {index_time:.2f}s")
+            # Add all embeddings to FAISS index
+            embeddings_array = np.array(embeddings, dtype=np.float32)
+            self.index.add(embeddings_array)
 
-            # Stage 3: Add to document store
+            # Store document
             self.documents[document.id] = document
-            logger.info(f"Document added to in-memory store. Total documents: {len(self.documents)}")
+            logger.info(f"Added document with {len(embeddings)} embeddings")
 
-            # Stage 4: Persist state
-            logger.info("Persisting state to disk...")
-            save_start = time.time()
+            # Save state
             self._save_state()
-            save_time = time.time() - save_start
-            logger.info(f"State persistence completed in {save_time:.2f}s")
 
             total_time = time.time() - start_time
             logger.info(f"Document successfully added in {total_time:.2f}s")
-            self.last_api_error = None  # Clear any previous error on success
             return True, None
 
         except Exception as e:
             error_msg = f"Error adding document to vector store: {str(e)}"
-            logger.error(error_msg, exc_info=True)
+            logger.error(error_msg)
             return False, error_msg
 
     def search(self, query: str, k: int = 3) -> Tuple[List[VectorSearchResult], Optional[str]]:
         """Search for similar documents"""
         try:
-            logger.info(f"Processing search query: {query}")
             if not self.documents:
                 logger.warning("No documents in vector store")
                 return [], "No documents available for search"
 
-            logger.info("Generating query embedding")
             query_embedding = self.embedding_service.generate_embedding(query)
             if query_embedding is None:
                 error_msg = "Failed to generate query embedding"
                 logger.error(error_msg)
                 return [], error_msg
 
-            logger.info(f"Searching FAISS index with k={k}")
             distances, indices = self.index.search(
-                np.array([query_embedding], dtype=np.float32), 
-                min(k, len(self.documents))
+                np.array([query_embedding], dtype=np.float32),
+                min(k, self.index.ntotal)
             )
 
             results = []
+            seen_docs = set()  # Track unique documents
+
             for i, idx in enumerate(indices[0]):
-                if idx < 0 or idx >= len(self.documents):
+                if idx < 0 or idx >= self.index.ntotal:
                     continue
 
-                doc_id = list(self.documents.keys())[idx]
+                # Get document ID and content
+                doc_id = list(self.documents.keys())[idx // len(chunk_text(list(self.documents.values())[0].content))]
+                if doc_id in seen_docs:
+                    continue
+
                 doc = self.documents[doc_id]
                 similarity = float(1 / (1 + distances[0][i]))
 
-                logger.info(f"Found match: doc_id={doc_id}, similarity={similarity:.4f}")
                 results.append(
                     VectorSearchResult(
                         document_id=doc.id,
@@ -123,6 +143,10 @@ class VectorStore:
                         metadata=doc.metadata
                     )
                 )
+                seen_docs.add(doc_id)
+
+                if len(results) >= k:
+                    break
 
             return results, None
 
@@ -136,7 +160,7 @@ class VectorStore:
         return {
             "document_count": len(self.documents),
             "index_size": self.index.ntotal,
-            "last_api_error": self.last_api_error,  # Include API error in debug info
+            "last_api_error": self.last_api_error,
             "documents": [
                 {
                     "id": doc_id,
@@ -153,7 +177,6 @@ class VectorStore:
         try:
             logger.info(f"Saving FAISS index to {FAISS_INDEX_PATH}")
             faiss.write_index(self.index, FAISS_INDEX_PATH)
-            logger.info("FAISS index saved successfully")
 
             logger.info(f"Saving document store to {DOCUMENT_STORE_PATH}")
             document_data = {
@@ -167,7 +190,6 @@ class VectorStore:
 
             with open(DOCUMENT_STORE_PATH, 'w') as f:
                 json.dump(document_data, f)
-            logger.info("Document store saved successfully")
 
         except Exception as e:
             logger.error(f"Error saving vector store state: {str(e)}", exc_info=True)
