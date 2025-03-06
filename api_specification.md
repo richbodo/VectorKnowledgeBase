@@ -1,7 +1,9 @@
 # PDF Processing API Specification
 
 ## Base URL
-All endpoints are relative to: `https://your-replit-app.replit.app/`
+The API is accessible at: `https://{repl-name}.{repl-owner}.repl.co`
+
+The application is deployed using Replit's deployment service which automatically handles HTTPS and domain mapping. No port number is needed in the URL as Replit handles the port forwarding internally.
 
 ## Endpoints
 
@@ -40,7 +42,7 @@ Upload a PDF document for processing and vector storage.
 
 **Example Usage:**
 ```bash
-curl -X POST https://your-replit-app.replit.app/upload \
+curl -X POST https://{repl-name}.{repl-owner}.repl.co/upload \
   -F "file=@document.pdf" 
 ```
 
@@ -89,7 +91,7 @@ Search through uploaded documents using semantic similarity.
 
 **Example Usage:**
 ```bash
-curl -X POST https://your-replit-app.replit.app/query \
+curl -X POST https://{repl-name}.{repl-owner}.repl.co/query \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the main points discussed in the document?"}'
 ```
