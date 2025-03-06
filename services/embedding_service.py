@@ -2,7 +2,7 @@ import logging
 import os
 import time
 import traceback
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from openai import OpenAI
 from config import OPENAI_API_KEY, EMBEDDING_MODEL
 import httpx
@@ -17,12 +17,37 @@ class EmbeddingService:
             logger.error("OPENAI_API_KEY not found in environment")
             raise ValueError("OPENAI_API_KEY not configured")
 
+        # Validate API key format
+        if not OPENAI_API_KEY.startswith('sk-'):
+            logger.error("Invalid API key format: key must start with 'sk-'")
+            raise ValueError("Invalid OpenAI API key format")
+
         # Log key presence (not the actual key)
-        logger.info("OpenAI API key found, initializing client...")
-        logger.debug(f"API key starts with: {OPENAI_API_KEY[:4]}...")
+        logger.info("OpenAI API key found, validating format...")
+        logger.debug(f"API key format validation: starts with 'sk-': {OPENAI_API_KEY.startswith('sk-')}, length: {len(OPENAI_API_KEY)}")
 
         self.client = OpenAI(api_key=OPENAI_API_KEY)
         logger.info(f"Using embedding model: {EMBEDDING_MODEL}")
+
+    def test_connection(self) -> Tuple[bool, Optional[str]]:
+        """Test the OpenAI API connection"""
+        try:
+            # Make a minimal API call to test the connection
+            response = self.client.embeddings.create(
+                model=EMBEDDING_MODEL,
+                input="test"
+            )
+            logger.info("OpenAI API connection test successful")
+            return True, None
+        except Exception as e:
+            error_msg = str(e)
+            if isinstance(e, httpx.HTTPStatusError):
+                if e.response.status_code == 401:
+                    error_msg = "Invalid API key or unauthorized access"
+                elif e.response.status_code == 429:
+                    error_msg = "API rate limit exceeded or quota exhausted"
+            logger.error(f"OpenAI API connection test failed: {error_msg}")
+            return False, error_msg
 
     def generate_embedding(self, text: str) -> Optional[List[float]]:
         """Generate embedding vector for input text"""
@@ -69,14 +94,14 @@ class EmbeddingService:
                         f"Headers: {dict(http_error.response.headers)}"
                     )
 
-                    if status_code == 429:  # Rate limit error
+                    if status_code == 401:
+                        raise ValueError("Invalid API key or unauthorized access") from http_error
+                    elif status_code == 429:
                         error_msg = (
-                            "OpenAI API rate limit exceeded. "
-                            "Please try again later or check your API quota."
+                            "OpenAI API rate limit exceeded or quota exhausted. "
+                            "Please verify your API key and plan status."
                         )
-                    elif status_code == 401:  # Authentication error
-                        error_msg = "Invalid OpenAI API key or authentication failed."
-                    elif status_code == 500:  # Server error
+                    elif status_code == 500:
                         error_msg = "OpenAI API server error. Please try again later."
 
                     if attempt < max_retries - 1:

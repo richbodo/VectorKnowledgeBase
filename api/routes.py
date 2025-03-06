@@ -198,9 +198,9 @@ def query_documents():
 
             # Pass the results, query, and debug info back to the template
             return render_template('index.html', 
-                               results=results, 
-                               query=query, 
-                               debug_info=debug_info)
+                                   results=results, 
+                                   query=query, 
+                                   debug_info=debug_info)
 
         # If it's a GET request, just show the form
         return render_template('index.html', debug_info=debug_info)
@@ -260,7 +260,16 @@ def test_openai_connection():
             embedding_service = EmbeddingService()
             logger.info("Embedding service initialized successfully")
 
-            # Try to generate an embedding
+            # Test API connection first
+            connection_success, connection_error = embedding_service.test_connection()
+            if not connection_success:
+                error_details = {
+                    'error_type': 'Connection Error',
+                    'error_message': connection_error
+                }
+                raise ValueError(connection_error)
+
+            # If connection test passes, try to generate an embedding
             embedding = embedding_service.generate_embedding(test_text)
             logger.info("Test embedding generation completed")
 
