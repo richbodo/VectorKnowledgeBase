@@ -88,9 +88,14 @@
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h2 class="h5 mb-0">Debug Information</h2>
-                <button class="btn btn-sm btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#debugInfo">
-                    Toggle Debug Info
-                </button>
+                <div>
+                    <a href="{{ url_for('api.test_openai_connection') }}" class="btn btn-sm btn-info me-2" target="_blank">
+                        Test OpenAI Connection
+                    </a>
+                    <button class="btn btn-sm btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#debugInfo">
+                        Toggle Debug Info
+                    </button>
+                </div>
             </div>
             <div id="debugInfo" class="collapse show">
                 <div class="card-body">

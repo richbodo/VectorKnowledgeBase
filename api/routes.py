@@ -2,7 +2,7 @@ import uuid
 import logging
 import traceback
 import time
-import os # Added import statement
+import os
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
 from services.pdf_processor import PDFProcessor
 from services.vector_store import VectorStore
@@ -236,3 +236,56 @@ def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}", exc_info=True)
         return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+
+@bp.route('/test-openai', methods=['GET'])
+def test_openai_connection():
+    """Test OpenAI API connection and display diagnostic information"""
+    try:
+        from services.embedding_service import EmbeddingService
+
+        # Initialize embedding service
+        embedding_service = EmbeddingService()
+
+        # Get API key info (safely)
+        api_key = os.environ.get("OPENAI_API_KEY", "")
+        key_info = {
+            'starts_with': api_key[:4] if api_key else 'None',
+            'ends_with': api_key[-4:] if api_key else 'None',
+            'length': len(api_key),
+            'format_valid': api_key.startswith('sk-') if api_key else False
+        }
+
+        # Test embedding generation
+        test_text = "This is a test of the OpenAI API connection."
+        try:
+            embedding = embedding_service.generate_embedding(test_text)
+            success = embedding is not None
+        except Exception as e:
+            success = False
+            error_details = str(e)
+            if hasattr(e, 'response'):
+                error_details = {
+                    'status_code': e.response.status_code if hasattr(e.response, 'status_code') else 'unknown',
+                    'error_type': type(e).__name__,
+                    'error_message': str(e),
+                    'response_text': e.response.text if hasattr(e.response, 'text') else 'no response text'
+                }
+
+        # Prepare diagnostic info
+        diagnostic_info = {
+            'api_key_info': key_info,
+            'test_status': 'success' if success else 'failed',
+            'error_details': error_details if not success else None,
+            'embedding_service_initialized': True,
+            'model': embedding_service.client.models if hasattr(embedding_service, 'client') else None
+        }
+
+        return jsonify(diagnostic_info)
+
+    except Exception as e:
+        logger.error(f"Error in OpenAI test endpoint: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
