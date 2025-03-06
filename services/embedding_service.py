@@ -54,7 +54,10 @@ class EmbeddingService:
                     return embedding
 
                 except Exception as api_error:
-                    logger.warning(f"API call attempt {attempt + 1} failed: {str(api_error)}\n{traceback.format_exc()}")
+                    error_msg = str(api_error)
+                    if "429" in error_msg:  # Rate limit error
+                        error_msg = "OpenAI API rate limit exceeded. Please try again later."
+                    logger.warning(f"API call attempt {attempt + 1} failed: {error_msg}\n{traceback.format_exc()}")
                     if attempt < max_retries - 1:
                         logger.info(f"Retrying in {retry_delay} seconds...")
                         time.sleep(retry_delay)
@@ -63,5 +66,8 @@ class EmbeddingService:
                         raise  # Re-raise the last error if all retries failed
 
         except Exception as e:
-            logger.error(f"Error generating embedding: {str(e)}\n{traceback.format_exc()}")
+            error_msg = str(e)
+            if "429" in error_msg:  # Rate limit error
+                error_msg = "OpenAI API rate limit exceeded. Please try again later."
+            logger.error(f"Error generating embedding: {error_msg}\n{traceback.format_exc()}")
             return None
