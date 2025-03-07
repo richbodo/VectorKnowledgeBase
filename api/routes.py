@@ -30,7 +30,7 @@ def json_response(payload, status=200):
     logger.debug(f"Response headers: {dict(response.headers)}")
     return response
 
-@bp.route('/upload', methods=['POST', 'OPTIONS'])
+@bp.route('upload', methods=['POST', 'OPTIONS'])  # Remove leading slash since url_prefix adds it
 def upload_document():
     """Upload and process a PDF document"""
     logger.info(f"API: Received {request.method} request to /api/upload")
