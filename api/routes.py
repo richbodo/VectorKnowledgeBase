@@ -2,9 +2,8 @@ import os
 import uuid
 import logging
 import traceback
-import time
 from datetime import datetime
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, make_response
+from flask import Blueprint, request, jsonify, make_response
 from services.pdf_processor import PDFProcessor
 from services.vector_store import VectorStore
 from services.embedding_service import EmbeddingService
@@ -16,37 +15,35 @@ bp = Blueprint('api', __name__)
 
 def json_response(data, status_code=200):
     """Helper function to create consistent JSON responses"""
-    if isinstance(data, str):
-        data = {"message": data}
     response = make_response(jsonify(data), status_code)
     response.headers['Content-Type'] = 'application/json'
+    response.headers['X-Content-Type-Options'] = 'nosniff'  # Prevent content type sniffing
     return response
 
 @bp.route('/upload', methods=['POST', 'OPTIONS'])
 def upload_document():
     """Upload and process a PDF document"""
     try:
+        # Handle OPTIONS request
         if request.method == 'OPTIONS':
-            response = json_response({
-                "message": "Allowed methods: POST",
+            response = make_response(jsonify({
+                "message": "API endpoint ready",
+                "allowed_methods": ["POST"],
                 "allowed_content_types": ALLOWED_FILE_TYPES
-            })
-            response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+            }))
+            response.headers['Content-Type'] = 'application/json'
+            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            response.headers['X-Content-Type-Options'] = 'nosniff'
             return response
 
         # Log request details for debugging
         logger.info("=== Starting document upload process ===")
         logger.info(f"Request method: {request.method}")
         logger.info(f"Request headers: {dict(request.headers)}")
-        logger.info(f"Request files: {request.files}")
-        logger.info(f"Request form: {request.form}")
-        logger.info(f"Request data: {request.get_data()}")
+        logger.info(f"Content type: {request.content_type}")
 
-        if request.method != 'POST':
-            return json_response({"error": "Only POST method is allowed"}, 405)
-
-        # Stage 1: File Validation
+        # Validate file presence
         if 'file' not in request.files:
             return json_response({"error": "No file provided"}, 400)
 
@@ -58,38 +55,35 @@ def upload_document():
         allowed_extensions = {'.pdf'}
         file_ext = os.path.splitext(file.filename)[1].lower()
         if file_ext not in allowed_extensions:
-            error_msg = f"Invalid file extension '{file_ext}'. Only PDF files are allowed"
-            return json_response({"error": error_msg}, 400)
+            return json_response({
+                "error": f"Invalid file extension '{file_ext}'. Only PDF files are allowed"
+            }, 400)
 
-        # Read file content
+        # Read and validate file content
         content = file.read()
         file_size = len(content)
         logger.info(f"Received file: {file.filename}, size: {file_size} bytes, content type: {file.content_type}")
 
-        # Validate file size
         if file_size > MAX_FILE_SIZE:
-            error_msg = f"File size ({file_size} bytes) exceeds maximum limit ({MAX_FILE_SIZE} bytes)"
-            return json_response({"error": error_msg}, 400)
+            return json_response({
+                "error": f"File size ({file_size} bytes) exceeds maximum limit ({MAX_FILE_SIZE} bytes)"
+            }, 400)
 
-        # Validate file type - accept both explicit PDF mime type and octet-stream with .pdf extension
+        # Validate file type
         valid_content_types = ALLOWED_FILE_TYPES + ['application/octet-stream']
         if file.content_type not in valid_content_types and file_ext != '.pdf':
-            error_msg = f"Invalid file type '{file.content_type}'. Only PDF files are allowed"
-            return json_response({"error": error_msg}, 400)
+            return json_response({
+                "error": f"Invalid file type '{file.content_type}'. Only PDF files are allowed"
+            }, 400)
 
-        # Stage 2: PDF Text Extraction
-        logger.info("Starting PDF text extraction...")
+        # Extract text from PDF
         text_content, error = PDFProcessor.extract_text(content)
-
         if error:
             return json_response({"error": error}, 400)
-
         if not text_content:
-            error_msg = "No text content could be extracted from the PDF"
-            return json_response({"error": error_msg}, 400)
+            return json_response({"error": "No text content could be extracted from the PDF"}, 400)
 
-        # Stage 3: Create document and prepare for vector store
-        logger.info("Starting document creation and vector store preparation...")
+        # Create document and add to vector store
         doc_id = str(uuid.uuid4())
         document = Document(
             id=doc_id,
@@ -102,29 +96,34 @@ def upload_document():
             }
         )
 
-        # Stage 4: Add to vector store
-        logger.info("Starting vector store operations...")
         vector_store = VectorStore.get_instance()
         success, error_msg = vector_store.add_document(document)
 
         if not success:
             return json_response({"error": error_msg}, 500)
 
-        logger.info("=== Document processing complete ===")
-        return json_response({
+        # Prepare and log response
+        response_data = {
             "success": True,
             "message": "Document processed successfully",
-            "document_id": doc_id
-        })
+            "document_id": doc_id,
+            "metadata": {
+                "filename": file.filename,
+                "size": file_size,
+                "content_type": file.content_type
+            }
+        }
+        logger.info(f"Sending upload response: {response_data}")
+        return json_response(response_data)
 
     except Exception as e:
         error_msg = f"Error processing upload: {str(e)}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
-        return json_response({"error": f"Internal server error: {str(e)}"}, 500)
+        return json_response({"error": error_msg}, 500)
 
 @bp.route('/query', methods=['POST'])
 def query_documents():
-    """Query endpoint optimized for GPT Actions"""
+    """Query endpoint for semantic search"""
     try:
         if not request.is_json:
             return json_response({"error": "Request must be JSON"}, 400)
@@ -138,14 +137,14 @@ def query_documents():
         vector_store = VectorStore.get_instance()
         results, error_msg = vector_store.search(
             query=query,
-            k=3,  # Return top 3 most relevant results
-            similarity_threshold=0.1  # Lower threshold to get more potential matches
+            k=3,
+            similarity_threshold=0.1
         )
 
         if error_msg:
             return json_response({"error": error_msg}, 500)
 
-        response = {
+        response_data = {
             "results": [{
                 "title": result.metadata.get("filename", "Unknown"),
                 "content": result.content,
@@ -159,11 +158,13 @@ def query_documents():
             } for result in results]
         }
 
-        return json_response(response)
+        logger.info(f"Sending JSON response for query: {response_data}")
+        return json_response(response_data)
 
     except Exception as e:
-        logger.error(f"Error processing query: {traceback.format_exc()}")
-        return json_response({"error": f"Internal server error: {str(e)}"}, 500)
+        error_msg = f"Error processing query: {str(e)}"
+        logger.error(f"{error_msg}\n{traceback.format_exc()}")
+        return json_response({"error": error_msg}, 500)
 
 @bp.route('/health', methods=['GET'])
 def health_check():
@@ -237,25 +238,3 @@ def test_openai_connection():
             'error': str(e),
             'traceback': traceback.format_exc()
         }, 500)
-
-@bp.route('/', methods=['GET'])
-def index():
-    """Render the main page"""
-    vector_store = VectorStore.get_instance()
-    debug_info = vector_store.get_debug_info()
-    
-    # Get query parameter if it exists
-    query = request.args.get('query', '')
-    results = []
-    
-    # If query is provided, perform search
-    if query:
-        results, error_msg = vector_store.search(
-            query=query,
-            k=3,
-            similarity_threshold=0.1
-        )
-        if error_msg:
-            flash(error_msg, "error")
-    
-    return render_template('index.html', debug_info=debug_info, query=query, results=results)

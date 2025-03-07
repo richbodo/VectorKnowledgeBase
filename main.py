@@ -2,6 +2,7 @@ import logging
 import os
 from flask import Flask
 from api.routes import bp as api_bp
+from web.routes import bp as web_bp
 from services.vector_store import init_vector_store
 
 # Configure logging
@@ -34,9 +35,11 @@ def create_app():
         # Individual endpoints will handle vector store failures
 
     # Register blueprints
-    logger.info("Registering API blueprint...")
-    # Register without URL prefix so /upload is accessible at root
+    logger.info("Registering blueprints...")
+    # Register API routes without URL prefix
     app.register_blueprint(api_bp)
+    # Register web interface routes
+    app.register_blueprint(web_bp)
 
     # Add CORS headers
     @app.after_request
