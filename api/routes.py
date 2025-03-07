@@ -2,6 +2,7 @@ import os
 import uuid
 import logging
 import traceback
+import json #Import json library for make_response
 from datetime import datetime
 from flask import Blueprint, request, jsonify, make_response
 from services.pdf_processor import PDFProcessor
@@ -13,22 +14,18 @@ logger = logging.getLogger(__name__)
 bp = Blueprint('api', __name__, url_prefix='/api')  # Add explicit URL prefix
 
 def json_response(payload, status=200):
-    """Helper function to create consistent JSON responses"""
-    response = jsonify(payload)
-    response.status_code = status
-    # Ensure JSON content type
-    response.headers['Content-Type'] = 'application/json'
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    # Set CORS headers
+    """Helper function to create consistent JSON responses.
+    Uses a simplified approach to ensure reliable response handling."""
+    response = make_response(json.dumps(payload), status)
+    response.mimetype = 'application/json'
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    # Prevent any redirects
-    response.headers.pop('Location', None)
+    response.headers.pop('Location', None)  # Prevent any redirects
     response.autocorrect_location_header = False
     return response
 
-@bp.route('upload', methods=['POST', 'OPTIONS'], strict_slashes=False)  # Add strict_slashes=False
+@bp.route('upload', methods=['POST', 'OPTIONS'], strict_slashes=False)
 def upload_document():
     """Upload and process a PDF document"""
     logger.info(f"API: Received {request.method} request to /api/upload")
