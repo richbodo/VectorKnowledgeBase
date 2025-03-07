@@ -12,12 +12,18 @@ from config import MAX_FILE_SIZE, ALLOWED_FILE_TYPES
 logger = logging.getLogger(__name__)
 bp = Blueprint('api', __name__)
 
-def json_response(data, status_code=200):
+def json_response(payload, status=200):
     """Helper function to create consistent JSON responses"""
-    response = make_response(jsonify(data), status_code)
+    response = jsonify(payload)
+    response.status_code = status
+    # Ensure JSON content type
     response.headers['Content-Type'] = 'application/json'
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    # Ensure no redirects happen
+    # Set CORS headers
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    # Prevent any redirects
     response.headers.pop('Location', None)
     response.autocorrect_location_header = False
     return response
@@ -25,21 +31,18 @@ def json_response(data, status_code=200):
 @bp.route('/upload', methods=['POST', 'OPTIONS'])
 def upload_document():
     """Upload and process a PDF document"""
+    logger.info(f"API: Received {request.method} request to /upload")
+    logger.info(f"Request headers: {dict(request.headers)}")
+
+    # Handle OPTIONS request with explicit 204 response
+    if request.method == 'OPTIONS':
+        response = make_response('', 204)
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
     try:
-        logger.info(f"API: Received {request.method} request to /upload")
-        logger.info(f"Request headers: {dict(request.headers)}")
-        logger.info(f"Request form data keys: {list(request.form.keys())}")
-        logger.info(f"Request files keys: {list(request.files.keys())}")
-
-        # Handle OPTIONS request
-        if request.method == 'OPTIONS':
-            response = make_response()
-            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-            response.headers['Content-Type'] = 'application/json'
-            return response
-
-        # Validate file presence
         if 'file' not in request.files:
             logger.error("No file provided in request")
             return json_response({"error": "No file provided"}, 400)

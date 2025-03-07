@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, render_template, request, flash, redirect, url_for
+from flask import Blueprint, render_template, request, flash
 from services.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
