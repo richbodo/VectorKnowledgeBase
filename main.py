@@ -1,6 +1,6 @@
 import logging
 import os
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from api.routes import bp as api_bp
 from web.routes import bp as web_bp
 from web.monitoring import bp as monitoring_bp
@@ -84,14 +84,14 @@ def create_app():
         logger.error(f"404 error for path: {request.path}")
         if request.path.startswith('/api/'):
             return jsonify({"error": "Resource not found"}), 404
-        return web_bp.error_handler(error)
+        return render_template('error.html', error=error), 404
 
     @app.errorhandler(500)
     def internal_error(error):
         logger.error(f"500 error for path: {request.path}")
         if request.path.startswith('/api/'):
             return jsonify({"error": "Internal server error"}), 500
-        return web_bp.error_handler(error)
+        return render_template('error.html', error=error), 500
 
     # Log all registered routes
     logger.info("Registered routes:")
