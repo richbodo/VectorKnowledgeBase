@@ -63,14 +63,22 @@
                     const progressBarInner = progressBar.querySelector('.progress-bar');
                     progressBar.classList.remove('d-none');
 
-                    fetch('/api/upload', {
+                    // Always use HTTPS for API requests
+                    const apiUrl = window.location.protocol + '//' + window.location.host + '/api/upload';
+
+                    fetch(apiUrl, {
                         method: 'POST',
                         body: formData,
                         headers: {
                             'Accept': 'application/json'
                         }
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             alert('File uploaded successfully!\nDocument ID: ' + data.document_id);
