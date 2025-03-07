@@ -80,12 +80,24 @@ def index():
     
     return render_template('index.html', debug_info=debug_info, query=query, results=results)
 
-@bp.route('/upload', methods=['POST'])
+@bp.route('/upload', methods=['POST', 'OPTIONS'])
 def upload_document():
     """Upload and process a PDF document"""
     try:
-        start_time = time.time()
+        # Log request details for debugging
         logger.info("=== Starting document upload process ===")
+        logger.info(f"Request method: {request.method}")
+        logger.info(f"Request headers: {dict(request.headers)}")
+        logger.info(f"Request files: {request.files}")
+        logger.info(f"Request form: {request.form}")
+        logger.info(f"Request data: {request.get_data()}")
+
+        if request.method == 'OPTIONS':
+            return '', 200
+
+        if request.method != 'POST':
+            logger.error(f"Invalid method: {request.method}")
+            return jsonify({"error": "Only POST method is allowed"}), 405
 
         # Stage 1: File Validation
         if 'file' not in request.files:
@@ -97,10 +109,18 @@ def upload_document():
             logger.error("Empty filename provided")
             return jsonify({"error": "No file selected"}), 400
 
+        # Check file extension
+        allowed_extensions = {'.pdf'}
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            error_msg = f"Invalid file extension '{file_ext}'. Only PDF files are allowed"
+            logger.error(error_msg)
+            return jsonify({"error": error_msg}), 400
+
         # Read file content
         content = file.read()
         file_size = len(content)
-        logger.info(f"Received file: {file.filename}, size: {file_size} bytes")
+        logger.info(f"Received file: {file.filename}, size: {file_size} bytes, content type: {file.content_type}")
 
         # Validate file size
         if file_size > MAX_FILE_SIZE:
@@ -108,11 +128,14 @@ def upload_document():
             logger.error(error_msg)
             return jsonify({"error": error_msg}), 400
 
-        # Validate file type
-        if file.content_type not in ALLOWED_FILE_TYPES:
+        # Validate file type - accept both explicit PDF mime type and octet-stream with .pdf extension
+        valid_content_types = ALLOWED_FILE_TYPES + ['application/octet-stream']
+        if file.content_type not in valid_content_types and file_ext != '.pdf':
             error_msg = f"Invalid file type '{file.content_type}'. Only PDF files are allowed"
             logger.error(error_msg)
             return jsonify({"error": error_msg}), 400
+
+        # If content type is octet-stream, we've already validated the .pdf extension above
 
         stage1_time = time.time() - start_time
         logger.info(f"Stage 1 (Validation) completed in {stage1_time:.2f}s")
