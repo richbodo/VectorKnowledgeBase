@@ -7,6 +7,7 @@ from datetime import datetime
 from models import Document, VectorSearchResult
 from services.embedding_service import EmbeddingService
 from config import EMBEDDING_MODEL
+from openai import APIError, APIStatusError
 
 logger = logging.getLogger(__name__)
 
@@ -44,14 +45,21 @@ class VectorStore:
             logger.info("Initializing ChromaDB vector store...")
             self.client = chromadb.PersistentClient(path=self.CHROMA_PERSIST_DIR)
 
-            openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-                api_key=os.environ["OPENAI_API_KEY"],
-                model_name=EMBEDDING_MODEL
-            )
+            # Initialize embedding service first
+            self.embedding_service = EmbeddingService()
 
+            # Create a custom embedding function that uses our embedding service
+            def custom_embedding_function(texts: List[str]) -> List[List[float]]:
+                try:
+                    return [self.embedding_service.generate_embedding(text) for text in texts]
+                except Exception as e:
+                    logger.error(f"Error generating embeddings: {str(e)}")
+                    raise
+
+            # Use the custom embedding function instead of the built-in one
             self.collection = self.client.get_or_create_collection(
                 name="pdf_documents",
-                embedding_function=openai_ef,
+                embedding_function=custom_embedding_function,
                 metadata={"hnsw:space": "cosine"}
             )
 
@@ -81,19 +89,24 @@ class VectorStore:
             # Create unique IDs for each chunk
             chunk_ids = [f"{document.id}_chunk_{i}" for i in range(len(chunks))]
 
-            # Add chunks to ChromaDB
-            self.collection.add(
-                ids=chunk_ids,
-                documents=chunks,
-                metadatas=[{
-                    "document_id": document.id,
-                    "chunk_index": i,
-                    "total_chunks": len(chunks),
-                    "filename": document.metadata.get("filename", "Unknown"),
-                    "content_type": document.metadata.get("content_type", "Unknown"),
-                    "size": document.metadata.get("size", 0)
-                } for i in range(len(chunks))]
-            )
+            try:
+                # Add chunks to ChromaDB
+                self.collection.add(
+                    ids=chunk_ids,
+                    documents=chunks,
+                    metadatas=[{
+                        "document_id": document.id,
+                        "chunk_index": i,
+                        "total_chunks": len(chunks),
+                        "filename": document.metadata.get("filename", "Unknown"),
+                        "content_type": document.metadata.get("content_type", "Unknown"),
+                        "size": document.metadata.get("size", 0)
+                    } for i in range(len(chunks))]
+                )
+            except (APIError, APIStatusError) as api_error:
+                error_msg = f"OpenAI API error: {str(api_error)}"
+                logger.error(error_msg)
+                return False, error_msg
 
             # Store document metadata
             self.documents[document.id] = document

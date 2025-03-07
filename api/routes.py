@@ -48,6 +48,7 @@ def upload_document():
         return response
 
     try:
+        logger.info(f"Request files: {request.files}")
         if 'file' not in request.files:
             logger.error("No file provided in request")
             return json_response({"error": "No file provided"}, 400)
@@ -70,13 +71,15 @@ def upload_document():
             }, 400)
 
         # Extract text from PDF
+        logger.debug("Starting PDF text extraction...")
         text_content, error = PDFProcessor.extract_text(content)
         if error:
             logger.error(f"Error extracting text: {error}")
-            return json_response({"error": error}, 400)
+            return json_response({"error": f"PDF extraction error: {error}"}, 400)
         if not text_content:
             logger.error("No text content could be extracted from the PDF")
             return json_response({"error": "No text content could be extracted from the PDF"}, 400)
+        logger.debug(f"Successfully extracted {len(text_content)} characters of text")
 
         # Create document
         doc_id = str(uuid.uuid4())
@@ -92,6 +95,7 @@ def upload_document():
         )
 
         # Add to vector store
+        logger.debug("Adding document to vector store...")
         vector_store = VectorStore.get_instance()
         success, error_msg = vector_store.add_document(document)
 
@@ -116,6 +120,7 @@ def upload_document():
     except Exception as e:
         error_msg = f"Error processing upload: {str(e)}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
+        logger.error("Full exception details:", exc_info=True)
         return json_response({"error": error_msg}, 500)
 
 @bp.route('/query', methods=['POST'])
