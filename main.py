@@ -25,6 +25,9 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET")
 
+    # Disable Flask's default redirect behavior
+    app.url_map.strict_slashes = False
+
     # Initialize vector store
     try:
         logger.info("Starting vector store initialization...")
@@ -47,7 +50,7 @@ def create_app():
     @app.after_request
     def after_request(response):
         # For API routes, ensure JSON response
-        if request.path.startswith('/upload') or request.path.startswith('/query'):
+        if request.path.startswith('/api/'):
             # Only set Content-Type if it's not already set (for file uploads etc)
             if 'Content-Type' not in response.headers:
                 response.headers['Content-Type'] = 'application/json'
@@ -65,15 +68,15 @@ def create_app():
     # Error handlers for API routes
     @app.errorhandler(404)
     def not_found(error):
-        if request.path.startswith('/web/'):
-            return web_bp.error_handler(error)
-        return jsonify({"error": "Resource not found"}), 404
+        if request.path.startswith('/api/'):
+            return jsonify({"error": "Resource not found"}), 404
+        return web_bp.error_handler(error)
 
     @app.errorhandler(500)
     def internal_error(error):
-        if request.path.startswith('/web/'):
-            return web_bp.error_handler(error)
-        return jsonify({"error": "Internal server error"}), 500
+        if request.path.startswith('/api/'):
+            return jsonify({"error": "Internal server error"}), 500
+        return web_bp.error_handler(error)
 
     logger.info("Flask application configured successfully")
     return app

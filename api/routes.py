@@ -10,7 +10,7 @@ from models import Document
 from config import MAX_FILE_SIZE, ALLOWED_FILE_TYPES
 
 logger = logging.getLogger(__name__)
-bp = Blueprint('api', __name__)
+bp = Blueprint('api', __name__, url_prefix='/api')  # Add explicit URL prefix
 
 def json_response(payload, status=200):
     """Helper function to create consistent JSON responses"""
@@ -28,10 +28,10 @@ def json_response(payload, status=200):
     response.autocorrect_location_header = False
     return response
 
-@bp.route('/upload', methods=['POST', 'OPTIONS'])
+@bp.route('upload', methods=['POST', 'OPTIONS'], strict_slashes=False)  # Add strict_slashes=False
 def upload_document():
     """Upload and process a PDF document"""
-    logger.info(f"API: Received {request.method} request to /upload")
+    logger.info(f"API: Received {request.method} request to /api/upload")
     logger.info(f"Request headers: {dict(request.headers)}")
 
     # Handle OPTIONS request with explicit 204 response
