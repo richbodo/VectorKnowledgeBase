@@ -1,8 +1,9 @@
 import logging
 import os
-from flask import Flask
+from flask import Flask, jsonify, request
 from api.routes import bp as api_bp
 from web.routes import bp as web_bp
+from web.monitoring import bp as monitoring_bp
 from services.vector_store import init_vector_store
 
 # Configure logging
@@ -31,34 +32,41 @@ def create_app():
         logger.info("Vector store initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
-        # Log error but don't raise - let the app start anyway
         # Individual endpoints will handle vector store failures
 
     # Register blueprints
     logger.info("Registering blueprints...")
-    # Register API routes without URL prefix
+    # Register API routes at root level for direct API access
     app.register_blueprint(api_bp)
-    # Register web interface routes
-    app.register_blueprint(web_bp)
+    # Register web interface routes under /web prefix
+    app.register_blueprint(web_bp, url_prefix="/web")
+    # Register monitoring routes
+    app.register_blueprint(monitoring_bp)
 
-    # Add CORS headers
+    # Add CORS headers to all responses
     @app.after_request
     def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        # Don't modify the Content-Type for web routes
+        if not request.path.startswith('/web/'):
+            response.headers['Content-Type'] = 'application/json'
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         return response
 
-    # Handle OPTIONS requests
-    @app.route('/upload', methods=['OPTIONS'])
-    def handle_options():
-        return '', 200
+    # Error handlers for API routes
+    @app.errorhandler(404)
+    def not_found(error):
+        if request.path.startswith('/web/'):
+            return web_bp.error_handler(error)
+        return jsonify({"error": "Resource not found"}), 404
 
-    # Error handlers
     @app.errorhandler(500)
     def internal_error(error):
-        logger.error(f"Server error: {str(error)}", exc_info=True)
-        return {"error": "Internal server error occurred"}, 500
+        if request.path.startswith('/web/'):
+            return web_bp.error_handler(error)
+        return jsonify({"error": "Internal server error"}), 500
 
     logger.info("Flask application configured successfully")
     return app
