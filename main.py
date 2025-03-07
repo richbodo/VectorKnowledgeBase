@@ -46,10 +46,14 @@ def create_app():
     # Add CORS headers to all responses
     @app.after_request
     def after_request(response):
-        # Don't modify the Content-Type for web routes
+        # For API routes (not starting with /web/), ensure JSON response
         if not request.path.startswith('/web/'):
-            response.headers['Content-Type'] = 'application/json'
+            # Only set Content-Type if it's not already set (for file uploads etc)
+            if 'Content-Type' not in response.headers:
+                response.headers['Content-Type'] = 'application/json'
             response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        # Add CORS headers for all responses
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
