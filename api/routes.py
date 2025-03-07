@@ -48,7 +48,6 @@ def upload_document():
             response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
             response.headers['Content-Type'] = 'application/json'
-            response.headers['X-Content-Type-Options'] = 'nosniff'
             return response
 
         # Validate file presence
@@ -109,7 +108,12 @@ def upload_document():
             }
         }
         logger.info(f"Sending JSON response: {response_data}")
-        return json_response(response_data)
+
+        # Ensure no redirection happens
+        response = json_response(response_data)
+        response.headers['Location'] = None  # Remove any Location header that might cause redirect
+        response.autocorrect_location_header = False  # Prevent Flask from adding Location header
+        return response
 
     except Exception as e:
         error_msg = f"Error processing upload: {str(e)}"
