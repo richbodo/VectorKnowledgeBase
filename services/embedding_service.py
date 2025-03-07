@@ -3,7 +3,7 @@ import os
 import time
 import traceback
 from typing import List, Optional, Tuple
-from openai import OpenAI
+from openai import OpenAI, APIError, APIStatusError
 from config import OPENAI_API_KEY, EMBEDDING_MODEL
 
 logger = logging.getLogger(__name__)
@@ -64,16 +64,30 @@ class EmbeddingService:
             logger.info(f"Generating embedding for text of length: {len(text)} chars")
             logger.debug(f"Text preview (first 100 chars): {text[:100]}...")
 
-            # Simple direct API call without retries
-            response = self.client.embeddings.create(
-                model=EMBEDDING_MODEL,
-                input=text
-            )
+            try:
+                # Simple direct API call without retries
+                response = self.client.embeddings.create(
+                    model=EMBEDDING_MODEL,
+                    input=text
+                )
 
-            # Extract embedding from response
-            embedding = response.data[0].embedding
-            logger.info(f"Successfully generated embedding vector of dimension {len(embedding)}")
-            return embedding
+                # Extract embedding from response
+                embedding = response.data[0].embedding
+                logger.info(f"Successfully generated embedding vector of dimension {len(embedding)}")
+                return embedding
+
+            except APIStatusError as api_error:
+                error_msg = f"OpenAI API Status Error: {str(api_error)}"
+                logger.error(f"{error_msg}\nResponse: {api_error.response}\nBody: {api_error.body}")
+                raise APIStatusError(
+                    message=str(api_error),
+                    response=api_error.response,
+                    body=api_error.body
+                )
+            except APIError as api_error:
+                error_msg = f"OpenAI API Error: {str(api_error)}"
+                logger.error(error_msg)
+                raise
 
         except Exception as e:
             error_msg = str(e)
