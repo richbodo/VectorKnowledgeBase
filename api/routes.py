@@ -90,18 +90,12 @@ def upload_document():
         # Stage 1: File Validation
         if 'file' not in request.files:
             logger.error("No file provided in request")
-            if request.is_json:
-                return jsonify({"error": "No file provided"}), 400
-            flash("No file provided", "error")
-            return redirect(url_for('api.index'))
+            return jsonify({"error": "No file provided"}), 400
 
         file = request.files['file']
         if not file.filename:
             logger.error("Empty filename provided")
-            if request.is_json:
-                return jsonify({"error": "No file selected"}), 400
-            flash("No file selected", "error")
-            return redirect(url_for('api.index'))
+            return jsonify({"error": "No file selected"}), 400
 
         # Read file content
         content = file.read()
@@ -112,19 +106,13 @@ def upload_document():
         if file_size > MAX_FILE_SIZE:
             error_msg = f"File size ({file_size} bytes) exceeds maximum limit ({MAX_FILE_SIZE} bytes)"
             logger.error(error_msg)
-            if request.is_json:
-                return jsonify({"error": error_msg}), 400
-            flash(error_msg, "error")
-            return redirect(url_for('api.index'))
+            return jsonify({"error": error_msg}), 400
 
         # Validate file type
         if file.content_type not in ALLOWED_FILE_TYPES:
             error_msg = f"Invalid file type '{file.content_type}'. Only PDF files are allowed"
             logger.error(error_msg)
-            if request.is_json:
-                return jsonify({"error": error_msg}), 400
-            flash(error_msg, "error")
-            return redirect(url_for('api.index'))
+            return jsonify({"error": error_msg}), 400
 
         stage1_time = time.time() - start_time
         logger.info(f"Stage 1 (Validation) completed in {stage1_time:.2f}s")
@@ -136,18 +124,12 @@ def upload_document():
 
         if error:
             logger.error(f"PDF processing error: {error}")
-            if request.is_json:
-                return jsonify({"error": error}), 400
-            flash(f"Error processing PDF: {error}", "error")
-            return redirect(url_for('api.index'))
+            return jsonify({"error": error}), 400
 
         if not text_content:
             error_msg = "No text content could be extracted from the PDF"
             logger.error(error_msg)
-            if request.is_json:
-                return jsonify({"error": error_msg}), 400
-            flash(error_msg, "error")
-            return redirect(url_for('api.index'))
+            return jsonify({"error": error_msg}), 400
 
         stage2_time = time.time() - stage2_start
         logger.info(f"Stage 2 (Text Extraction) completed in {stage2_time:.2f}s")
@@ -181,10 +163,7 @@ def upload_document():
 
         if not success:
             logger.error(f"Vector store error: {error_msg}")
-            if request.is_json:
-                return jsonify({"error": error_msg}), 500
-            flash(error_msg, "error")
-            return redirect(url_for('api.index'))
+            return jsonify({"error": error_msg}), 500
 
         stage4_time = time.time() - stage4_start
         total_time = time.time() - start_time
@@ -192,24 +171,16 @@ def upload_document():
         logger.info(f"Stage 4 (Vector Store) completed in {stage4_time:.2f}s")
         logger.info(f"=== Document processing complete in {total_time:.2f}s ===")
 
-        success_msg = "Document processed successfully"
-        if request.is_json:
-            return jsonify({
-                "success": True,
-                "message": success_msg,
-                "document_id": doc_id
-            })
-
-        flash(success_msg, "success")
-        return redirect(url_for('api.index'))
+        return jsonify({
+            "success": True,
+            "message": "Document processed successfully",
+            "document_id": doc_id
+        })
 
     except Exception as e:
         error_msg = f"Error processing upload: {str(e)}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
-        if request.is_json:
-            return jsonify({"error": f"Internal server error: {str(e)}"}), 500
-        flash(f"Internal server error: {str(e)}", "error")
-        return redirect(url_for('api.index'))
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 @bp.route('/health', methods=['GET'])
 def health_check():
