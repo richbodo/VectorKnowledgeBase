@@ -106,7 +106,7 @@ def upload_document():
             return json_response({"error": error_msg}, 500)
 
         logger.info(f"Successfully processed document: {doc_id}")
-        return json_response({
+        response_data = {
             "success": True,
             "message": "Document processed successfully",
             "document_id": doc_id,
@@ -115,7 +115,9 @@ def upload_document():
                 "size": file_size,
                 "content_type": file.content_type
             }
-        })
+        }
+        logger.info(f"Sending JSON response: {response_data}")
+        return json_response(response_data)
 
     except Exception as e:
         error_msg = f"Error processing upload: {str(e)}"
