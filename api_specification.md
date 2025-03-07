@@ -5,18 +5,12 @@ The API is accessible at: `https://VectorKnowledgeBase.RichBodo.repl.co`
 
 The application is deployed using Replit's deployment service which automatically handles HTTPS and domain mapping. No port number is needed in the URL as Replit handles the port forwarding internally.
 
-To find your API URL:
-1. Your {repl-name} is the name of your project shown at the top of your Replit window
-2. Your {repl-owner} is your Replit username
-For example, if your project is named "pdf-processor" and your Replit username is "johndoe", your API URL would be:
-`https://pdf-processor.johndoe.repl.co`
-
 ## Endpoints
 
 ### 1. Upload Document
 Upload a PDF document for processing and vector storage.
 
-**Endpoint:** `POST /upload`
+**Endpoint:** `POST /api/upload`
 
 **Content-Type:** `multipart/form-data`
 
@@ -48,17 +42,16 @@ Upload a PDF document for processing and vector storage.
 
 **Example Usage:**
 ```bash
-# Method 1: Using curl with explicit content type
-curl -X POST -F "file=@document.pdf;type=application/pdf" https://pdf-processor.johndoe.repl.co/upload
+# Using curl with explicit content type
+curl -X POST -F "file=@document.pdf;type=application/pdf" \
+     -H "Accept: application/json" \
+     https://vector-knowledge-base-RichBodo.repl.co/api/upload
 
-# Method 2: Simple curl upload (if the file has .pdf extension)
-curl -X POST -F "file=@document.pdf" https://pdf-processor.johndoe.repl.co/upload
+# Simple curl upload (if the file has .pdf extension)
+curl -X POST -F "file=@document.pdf" \
+     -H "Accept: application/json" \
+     https://vector-knowledge-base-RichBodo.repl.co/api/upload
 ```
-
-**Common Errors and Solutions:**
-1. "Method Not Allowed": Ensure you're using POST method and the correct endpoint URL
-2. "Invalid file type": Make sure you're uploading a PDF file and setting the correct content type
-3. "File too large": Check that your file is under 50MB
 
 ### 2. Query Documents
 Search through uploaded documents using semantic similarity.
