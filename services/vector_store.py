@@ -1,7 +1,7 @@
 import logging
 import os
 import chromadb
-from chromadb.utils import embedding_functions
+from chromadb.api.types import EmbeddingFunction
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from models import Document, VectorSearchResult
@@ -36,6 +36,17 @@ def chunk_text(text: str, max_chunk_size: int = 8000) -> List[str]:
 
     return chunks
 
+class CustomEmbeddingFunction(EmbeddingFunction):
+    def __init__(self, embedding_service: EmbeddingService):
+        self.embedding_service = embedding_service
+
+    def __call__(self, input: List[str]) -> List[List[float]]:
+        try:
+            return [self.embedding_service.generate_embedding(text) for text in input]
+        except Exception as e:
+            logger.error(f"Error generating embeddings: {str(e)}")
+            raise
+
 class VectorStore:
     _instance = None
     CHROMA_PERSIST_DIR = "chroma_db"
@@ -48,18 +59,13 @@ class VectorStore:
             # Initialize embedding service first
             self.embedding_service = EmbeddingService()
 
-            # Create a custom embedding function that uses our embedding service
-            def custom_embedding_function(texts: List[str]) -> List[List[float]]:
-                try:
-                    return [self.embedding_service.generate_embedding(text) for text in texts]
-                except Exception as e:
-                    logger.error(f"Error generating embeddings: {str(e)}")
-                    raise
+            # Create embedding function instance
+            embedding_func = CustomEmbeddingFunction(self.embedding_service)
 
-            # Use the custom embedding function instead of the built-in one
+            # Use the custom embedding function
             self.collection = self.client.get_or_create_collection(
                 name="pdf_documents",
-                embedding_function=custom_embedding_function,
+                embedding_function=embedding_func,
                 metadata={"hnsw:space": "cosine"}
             )
 
@@ -194,7 +200,7 @@ class VectorStore:
                     self.documents[doc_id] = Document(
                         id=doc_id,
                         content="",  # Only store metadata
-                        metadata={k: v for k, v in metadata.items() 
+                        metadata={k: v for k, v in metadata.items()
                                  if k not in ["document_id", "chunk_index", "total_chunks"]},
                         created_at=datetime.now()
                     )
