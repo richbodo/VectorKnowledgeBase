@@ -44,7 +44,9 @@
                 </form>
 
                 <script>
-                document.getElementById('uploadForm').onsubmit = function() {
+                document.getElementById('uploadForm').onsubmit = function(e) {
+                    e.preventDefault(); // Prevent default form submission
+
                     const form = this;
                     const file = form.file.files[0];
                     const maxSize = 50 * 1024 * 1024; // 50MB in bytes
@@ -76,7 +78,7 @@
                             if (xhr.status === 200 && response.success) {
                                 // Success - show message and refresh page
                                 alert('File uploaded successfully!\nDocument ID: ' + response.document_id);
-                                window.location.reload();
+                                location.reload();
                             } else {
                                 // Error with message from API
                                 alert('Upload failed: ' + (response.error || 'Unknown error'));
@@ -99,6 +101,7 @@
                     return false;
                 };
                 </script>
+
             </div>
         </div>
 
