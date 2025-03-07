@@ -24,18 +24,25 @@ def create_app():
 
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET")
+    if not app.secret_key:
+        logger.error("SESSION_SECRET environment variable not set")
+        raise ValueError("SESSION_SECRET environment variable is required")
 
     # Disable Flask's default redirect behavior
     app.url_map.strict_slashes = False
 
-    # Initialize vector store
-    try:
-        logger.info("Starting vector store initialization...")
-        init_vector_store()
-        logger.info("Vector store initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
-        # Individual endpoints will handle vector store failures
+    # Defer vector store initialization until first request
+    @app.before_request
+    def initialize_vector_store():
+        if not hasattr(app, '_vector_store_initialized'):
+            try:
+                logger.info("Starting vector store initialization...")
+                init_vector_store()
+                logger.info("Vector store initialized successfully")
+                app._vector_store_initialized = True
+            except Exception as e:
+                logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
+                # Individual endpoints will handle vector store failures
 
     # Register blueprints
     logger.info("Registering blueprints...")
