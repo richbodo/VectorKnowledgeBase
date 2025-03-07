@@ -10,66 +10,27 @@ from services.vector_store import VectorStore
 from services.embedding_service import EmbeddingService
 from models import Document
 from config import MAX_FILE_SIZE, ALLOWED_FILE_TYPES
-import httpx
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('api', __name__)
 
 def json_response(data, status_code=200):
     """Helper function to create consistent JSON responses"""
+    if isinstance(data, str):
+        data = {"message": data}
     response = make_response(jsonify(data), status_code)
     response.headers['Content-Type'] = 'application/json'
     return response
-
-@bp.route('/query', methods=['POST'])
-def query_documents():
-    """Query endpoint optimized for GPT Actions"""
-    try:
-        if not request.is_json:
-            return json_response({"error": "Request must be JSON"}, 400)
-
-        data = request.get_json()
-        query = data.get('query', '').strip() if data else ''
-
-        if not query:
-            return json_response({"error": "Query cannot be empty"}, 400)
-
-        vector_store = VectorStore.get_instance()
-        results, error_msg = vector_store.search(
-            query=query,
-            k=3,  # Return top 3 most relevant results
-            similarity_threshold=0.1  # Lower threshold to get more potential matches
-        )
-
-        if error_msg:
-            return json_response({"error": error_msg}, 500)
-
-        response = {
-            "results": [{
-                "title": result.metadata.get("filename", "Unknown"),
-                "content": result.content,
-                "score": result.similarity_score,
-                "metadata": {
-                    "source": f"Part {result.metadata.get('chunk_index', 0) + 1} of {result.metadata.get('total_chunks', 1)}",
-                    "file_type": result.metadata.get("content_type", "application/pdf"),
-                    "uploaded_at": result.metadata.get("created_at", datetime.utcnow().isoformat()),
-                    "file_size": f"{result.metadata.get('size', 0) / 1024 / 1024:.1f}MB"
-                }
-            } for result in results]
-        }
-
-        return json_response(response)
-
-    except Exception as e:
-        logger.error(f"Error processing query: {traceback.format_exc()}")
-        return json_response({"error": f"Internal server error: {str(e)}"}, 500)
 
 @bp.route('/upload', methods=['POST', 'OPTIONS'])
 def upload_document():
     """Upload and process a PDF document"""
     try:
         if request.method == 'OPTIONS':
-            response = make_response()
+            response = json_response({
+                "message": "Allowed methods: POST",
+                "allowed_content_types": ALLOWED_FILE_TYPES
+            })
             response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
             response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
             return response
@@ -116,8 +77,6 @@ def upload_document():
             error_msg = f"Invalid file type '{file.content_type}'. Only PDF files are allowed"
             return json_response({"error": error_msg}, 400)
 
-        # If content type is octet-stream, we've already validated the .pdf extension above
-
         # Stage 2: PDF Text Extraction
         logger.info("Starting PDF text extraction...")
         text_content, error = PDFProcessor.extract_text(content)
@@ -161,6 +120,49 @@ def upload_document():
     except Exception as e:
         error_msg = f"Error processing upload: {str(e)}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
+        return json_response({"error": f"Internal server error: {str(e)}"}, 500)
+
+@bp.route('/query', methods=['POST'])
+def query_documents():
+    """Query endpoint optimized for GPT Actions"""
+    try:
+        if not request.is_json:
+            return json_response({"error": "Request must be JSON"}, 400)
+
+        data = request.get_json()
+        query = data.get('query', '').strip() if data else ''
+
+        if not query:
+            return json_response({"error": "Query cannot be empty"}, 400)
+
+        vector_store = VectorStore.get_instance()
+        results, error_msg = vector_store.search(
+            query=query,
+            k=3,  # Return top 3 most relevant results
+            similarity_threshold=0.1  # Lower threshold to get more potential matches
+        )
+
+        if error_msg:
+            return json_response({"error": error_msg}, 500)
+
+        response = {
+            "results": [{
+                "title": result.metadata.get("filename", "Unknown"),
+                "content": result.content,
+                "score": result.similarity_score,
+                "metadata": {
+                    "source": f"Part {result.metadata.get('chunk_index', 0) + 1} of {result.metadata.get('total_chunks', 1)}",
+                    "file_type": result.metadata.get("content_type", "application/pdf"),
+                    "uploaded_at": result.metadata.get("created_at", datetime.utcnow().isoformat()),
+                    "file_size": f"{result.metadata.get('size', 0) / 1024 / 1024:.1f}MB"
+                }
+            } for result in results]
+        }
+
+        return json_response(response)
+
+    except Exception as e:
+        logger.error(f"Error processing query: {traceback.format_exc()}")
         return json_response({"error": f"Internal server error: {str(e)}"}, 500)
 
 @bp.route('/health', methods=['GET'])
