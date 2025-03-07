@@ -71,11 +71,21 @@
                     };
 
                     xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            window.location.href = xhr.responseURL || '/';
-                        } else {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (xhr.status === 200 && response.success) {
+                                // Success - show message and refresh page
+                                alert('File uploaded successfully!\nDocument ID: ' + response.document_id);
+                                window.location.reload();
+                            } else {
+                                // Error with message from API
+                                alert('Upload failed: ' + (response.error || 'Unknown error'));
+                                progressBar.classList.add('d-none');
+                            }
+                        } catch (e) {
+                            // Error parsing JSON
+                            alert('Upload failed: Invalid server response');
                             progressBar.classList.add('d-none');
-                            alert('Upload failed: ' + xhr.statusText);
                         }
                     };
 
