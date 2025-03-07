@@ -28,7 +28,7 @@
                 <h2 class="h5 mb-0">Upload PDF Document</h2>
             </div>
             <div class="card-body">
-                <form action="{{ url_for('api.upload_document') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+                <form id="uploadForm" onsubmit="handleUpload(event)">
                     <div class="mb-3">
                         <label for="file" class="form-label">Select PDF File (Max size: 50MB)</label>
                         <input type="file" class="form-control" id="file" name="file" accept="application/pdf" required>
@@ -44,10 +44,10 @@
                 </form>
 
                 <script>
-                document.getElementById('uploadForm').onsubmit = function(e) {
-                    e.preventDefault(); // Prevent default form submission
+                function handleUpload(event) {
+                    event.preventDefault();
 
-                    const form = this;
+                    const form = event.target;
                     const file = form.file.files[0];
                     const maxSize = 50 * 1024 * 1024; // 50MB in bytes
 
@@ -56,51 +56,41 @@
                         return false;
                     }
 
-                    const formData = new FormData(form);
-                    const xhr = new XMLHttpRequest();
+                    const formData = new FormData();
+                    formData.append('file', file);
+
                     const progressBar = document.getElementById('uploadProgress');
                     const progressBarInner = progressBar.querySelector('.progress-bar');
-
                     progressBar.classList.remove('d-none');
 
-                    xhr.upload.onprogress = function(e) {
-                        if (e.lengthComputable) {
-                            const percentComplete = (e.loaded / e.total) * 100;
-                            progressBarInner.style.width = percentComplete + '%';
-                            progressBarInner.textContent = Math.round(percentComplete) + '%';
-                            progressBarInner.setAttribute('aria-valuenow', percentComplete);
+                    fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'Accept': 'application/json'
                         }
-                    };
-
-                    xhr.onload = function() {
-                        try {
-                            const response = JSON.parse(xhr.responseText);
-                            if (xhr.status === 200 && response.success) {
-                                // Success - show message and refresh page
-                                alert('File uploaded successfully!\nDocument ID: ' + response.document_id);
-                                location.reload();
-                            } else {
-                                // Error with message from API
-                                alert('Upload failed: ' + (response.error || 'Unknown error'));
-                                progressBar.classList.add('d-none');
-                            }
-                        } catch (e) {
-                            // Error parsing JSON
-                            alert('Upload failed: Invalid server response');
-                            progressBar.classList.add('d-none');
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('File uploaded successfully!\nDocument ID: ' + data.document_id);
+                            location.reload();
+                        } else {
+                            alert('Upload failed: ' + (data.error || 'Unknown error'));
                         }
-                    };
-
-                    xhr.onerror = function() {
-                        progressBar.classList.add('d-none');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
                         alert('Upload failed. Please try again.');
-                    };
+                    })
+                    .finally(() => {
+                        progressBar.classList.add('d-none');
+                    });
 
-                    xhr.open('POST', form.action, true);
-                    xhr.send(formData);
                     return false;
-                };
+                }
                 </script>
+
 
             </div>
         </div>
@@ -125,12 +115,12 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Search</button>
                 </form>
-                
+
                 <script>
                 function submitSearch(event) {
                     event.preventDefault();
                     const query = document.getElementById('query').value;
-                    
+
                     fetch('{{ url_for('api.query_documents') }}', {
                         method: 'POST',
                         headers: {
