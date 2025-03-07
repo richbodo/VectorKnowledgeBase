@@ -61,14 +61,6 @@ def upload_document():
 
         logger.info(f"Processing file: {file.filename}, content type: {file.content_type}")
 
-        # Validate file extension
-        allowed_extensions = {'.pdf'}
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        if file_ext not in allowed_extensions:
-            return json_response({
-                "error": f"Invalid file extension '{file_ext}'. Only PDF files are allowed"
-            }, 400)
-
         # Read and validate file content
         content = file.read()
         file_size = len(content)
