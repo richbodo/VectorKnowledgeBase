@@ -38,8 +38,8 @@ def create_app():
     logger.info("Registering blueprints...")
     # Register API routes at root level for direct API access
     app.register_blueprint(api_bp)
-    # Register web interface routes under /web prefix
-    app.register_blueprint(web_bp, url_prefix="/web")
+    # Register web interface routes at root for landing page
+    app.register_blueprint(web_bp)
     # Register monitoring routes
     app.register_blueprint(monitoring_bp)
 
