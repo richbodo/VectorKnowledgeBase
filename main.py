@@ -49,8 +49,14 @@ def create_app():
     # Add CORS headers to all responses
     @app.after_request
     def after_request(response):
+        logger.debug(f"Processing request: {request.method} {request.path}")
+        logger.debug(f"Request headers: {dict(request.headers)}")
+        logger.debug(f"Response status: {response.status_code}")
+        logger.debug(f"Response headers: {dict(response.headers)}")
+
         # For API routes, ensure JSON response
         if request.path.startswith('/api/'):
+            logger.debug("API route detected, ensuring JSON response")
             # Only set Content-Type if it's not already set (for file uploads etc)
             if 'Content-Type' not in response.headers:
                 response.headers['Content-Type'] = 'application/json'
@@ -68,15 +74,22 @@ def create_app():
     # Error handlers for API routes
     @app.errorhandler(404)
     def not_found(error):
+        logger.error(f"404 error for path: {request.path}")
         if request.path.startswith('/api/'):
             return jsonify({"error": "Resource not found"}), 404
         return web_bp.error_handler(error)
 
     @app.errorhandler(500)
     def internal_error(error):
+        logger.error(f"500 error for path: {request.path}")
         if request.path.startswith('/api/'):
             return jsonify({"error": "Internal server error"}), 500
         return web_bp.error_handler(error)
+
+    # Log all registered routes
+    logger.info("Registered routes:")
+    for rule in app.url_map.iter_rules():
+        logger.info(f"Route: {rule.rule} Methods: {rule.methods}")
 
     logger.info("Flask application configured successfully")
     return app
