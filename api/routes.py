@@ -17,23 +17,10 @@ def json_response(data, status_code=200):
     response = make_response(jsonify(data), status_code)
     response.headers['Content-Type'] = 'application/json'
     response.headers['X-Content-Type-Options'] = 'nosniff'
+    # Ensure no redirects happen
+    response.headers.pop('Location', None)
+    response.autocorrect_location_header = False
     return response
-
-# Blueprint error handlers
-@bp.errorhandler(404)
-def not_found_error(error):
-    return json_response({"error": "Resource not found"}, 404)
-
-@bp.errorhandler(405)
-def method_not_allowed_error(error):
-    return json_response({
-        "error": f"Method {request.method} not allowed",
-        "allowed_methods": error.valid_methods
-    }, 405)
-
-@bp.errorhandler(500)
-def internal_error(error):
-    return json_response({"error": "Internal server error"}, 500)
 
 @bp.route('/upload', methods=['POST', 'OPTIONS'])
 def upload_document():
@@ -41,6 +28,8 @@ def upload_document():
     try:
         logger.info(f"API: Received {request.method} request to /upload")
         logger.info(f"Request headers: {dict(request.headers)}")
+        logger.info(f"Request form data keys: {list(request.form.keys())}")
+        logger.info(f"Request files keys: {list(request.files.keys())}")
 
         # Handle OPTIONS request
         if request.method == 'OPTIONS':
@@ -52,10 +41,12 @@ def upload_document():
 
         # Validate file presence
         if 'file' not in request.files:
+            logger.error("No file provided in request")
             return json_response({"error": "No file provided"}, 400)
 
         file = request.files['file']
         if not file.filename:
+            logger.error("No file selected")
             return json_response({"error": "No file selected"}, 400)
 
         logger.info(f"Processing file: {file.filename}, content type: {file.content_type}")
@@ -65,6 +56,7 @@ def upload_document():
         file_size = len(content)
 
         if file_size > MAX_FILE_SIZE:
+            logger.error(f"File size ({file_size} bytes) exceeds maximum limit ({MAX_FILE_SIZE} bytes)")
             return json_response({
                 "error": f"File size ({file_size} bytes) exceeds maximum limit ({MAX_FILE_SIZE} bytes)"
             }, 400)
@@ -72,8 +64,10 @@ def upload_document():
         # Extract text from PDF
         text_content, error = PDFProcessor.extract_text(content)
         if error:
+            logger.error(f"Error extracting text: {error}")
             return json_response({"error": error}, 400)
         if not text_content:
+            logger.error("No text content could be extracted from the PDF")
             return json_response({"error": "No text content could be extracted from the PDF"}, 400)
 
         # Create document
@@ -94,6 +88,7 @@ def upload_document():
         success, error_msg = vector_store.add_document(document)
 
         if not success:
+            logger.error(f"Failed to add document to vector store: {error_msg}")
             return json_response({"error": error_msg}, 500)
 
         logger.info(f"Successfully processed document: {doc_id}")
@@ -108,12 +103,7 @@ def upload_document():
             }
         }
         logger.info(f"Sending JSON response: {response_data}")
-
-        # Ensure no redirection happens
-        response = json_response(response_data)
-        response.headers['Location'] = None  # Remove any Location header that might cause redirect
-        response.autocorrect_location_header = False  # Prevent Flask from adding Location header
-        return response
+        return json_response(response_data)
 
     except Exception as e:
         error_msg = f"Error processing upload: {str(e)}"
