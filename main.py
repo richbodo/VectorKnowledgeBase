@@ -6,7 +6,7 @@ from web.routes import bp as web_bp
 from web.monitoring import bp as monitoring_bp
 from services.vector_store import init_vector_store
 
-# Configure logging
+# Configure logging at the root level to capture everything
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -15,7 +15,11 @@ logging.basicConfig(
         logging.FileHandler('app.log')
     ]
 )
+
+# Create a dedicated logger for the application
 logger = logging.getLogger(__name__)
+# Ensure propagation to root logger
+logger.propagate = True
 
 def create_app():
     """Application factory function"""
@@ -30,6 +34,22 @@ def create_app():
 
     # Disable Flask's default redirect behavior
     app.url_map.strict_slashes = False
+
+    # Add request logging - Enhanced with more details
+    @app.before_request
+    def log_request_info():
+        logger.info('=' * 80)
+        logger.info(f"Request Method: {request.method}")
+        logger.info(f"Request Path: {request.path}")
+        logger.info(f"Request URL: {request.url}")
+        logger.info(f"Request Headers: {dict(request.headers)}")
+        if request.is_json:
+            logger.info(f"Request JSON: {request.get_json()}")
+        elif request.form:
+            logger.info(f"Request Form: {dict(request.form)}")
+        if request.files:
+            logger.info(f"Request Files: {[f.filename for f in request.files.values()]}")
+        logger.info('=' * 80)
 
     # Defer vector store initialization until first request
     @app.before_request
@@ -60,6 +80,8 @@ def create_app():
         logger.debug(f"Request headers: {dict(request.headers)}")
         logger.debug(f"Response status: {response.status_code}")
         logger.debug(f"Response headers: {dict(response.headers)}")
+        if response.status_code >= 400:
+            logger.error(f"Error response body: {response.get_data(as_text=True)}")
 
         # For API routes, ensure JSON response
         if request.path.startswith('/api/'):
@@ -105,4 +127,4 @@ app = create_app()
 
 if __name__ == "__main__":
     logger.info("Starting Flask application on port 8080")
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host='0.0.0.0', port=8080, debug=True)
