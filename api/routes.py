@@ -13,6 +13,9 @@ from config import MAX_FILE_SIZE, ALLOWED_FILE_TYPES
 logger = logging.getLogger(__name__)
 bp = Blueprint('api', __name__, url_prefix='/api')  # Add explicit URL prefix
 
+# Add logging for blueprint registration
+logger.info(f"Registering API blueprint with prefix: {bp.url_prefix}")
+
 def json_response(payload, status=200):
     """Helper function to create consistent JSON responses.
     Uses a simplified approach to ensure reliable response handling."""
@@ -101,7 +104,7 @@ def upload_document():
 
         if not success:
             logger.error(f"Failed to add document to vector store: {error_msg}")
-            return json_response({"error": error_msg}, 500)
+            return json_response({"error": f"Error adding document to vector store: {error_msg}"}, 500)
 
         logger.info(f"Successfully processed document: {doc_id}")
         response_data = {
@@ -121,46 +124,4 @@ def upload_document():
         error_msg = f"Error processing upload: {str(e)}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
         logger.error("Full exception details:", exc_info=True)
-        return json_response({"error": error_msg}, 500)
-
-@bp.route('/query', methods=['POST'])
-def query_documents():
-    """Query endpoint for semantic search"""
-    try:
-        if not request.is_json:
-            return json_response({"error": "Request must be JSON"}, 400)
-
-        data = request.get_json()
-        query = data.get('query', '').strip() if data else ''
-
-        if not query:
-            return json_response({"error": "Query cannot be empty"}, 400)
-
-        vector_store = VectorStore.get_instance()
-        results, error_msg = vector_store.search(
-            query=query,
-            k=3,
-            similarity_threshold=0.1
-        )
-
-        if error_msg:
-            return json_response({"error": error_msg}, 500)
-
-        return json_response({
-            "results": [{
-                "title": result.metadata.get("filename", "Unknown"),
-                "content": result.content,
-                "score": result.similarity_score,
-                "metadata": {
-                    "source": f"Part {result.metadata.get('chunk_index', 0) + 1} of {result.metadata.get('total_chunks', 1)}",
-                    "file_type": result.metadata.get("content_type", "application/pdf"),
-                    "uploaded_at": result.metadata.get("created_at", datetime.utcnow().isoformat()),
-                    "file_size": f"{result.metadata.get('size', 0) / 1024 / 1024:.1f}MB"
-                }
-            } for result in results]
-        })
-
-    except Exception as e:
-        error_msg = f"Error processing query: {str(e)}"
-        logger.error(f"{error_msg}\n{traceback.format_exc()}")
         return json_response({"error": error_msg}, 500)
