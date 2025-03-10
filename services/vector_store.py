@@ -42,20 +42,7 @@ class CustomEmbeddingFunction(EmbeddingFunction):
 
     def __call__(self, input: List[str]) -> List[List[float]]:
         try:
-            embeddings = []
-            for text in input:
-                try:
-                    embedding = self.embedding_service.generate_embedding(text)
-                    embeddings.append(embedding)
-                except APIStatusError as api_error:
-                    # Properly propagate the API error with required arguments
-                    logger.error(f"OpenAI API Status Error: {str(api_error)}")
-                    raise APIStatusError(
-                        message=str(api_error),
-                        response=getattr(api_error, 'response', None),
-                        body=getattr(api_error, 'body', None)
-                    )
-            return embeddings
+            return [self.embedding_service.generate_embedding(text) for text in input]
         except Exception as e:
             logger.error(f"Error generating embeddings: {str(e)}")
             raise
