@@ -79,11 +79,20 @@ class EmbeddingService:
             except APIStatusError as api_error:
                 error_msg = f"OpenAI API Status Error: {str(api_error)}"
                 logger.error(f"{error_msg}\nResponse: {api_error.response}\nBody: {api_error.body}")
-                raise APIStatusError(
-                    message=str(api_error),
-                    response=api_error.response,
-                    body=api_error.body
-                )
+                if hasattr(api_error, 'response') and hasattr(api_error, 'body'):
+                    raise APIStatusError(
+                        message=str(api_error),
+                        response=api_error.response,
+                        body=api_error.body
+                    )
+                else:
+                    # If response or body is missing, create a minimal error response
+                    raise APIStatusError(
+                        message=str(api_error),
+                        response={'status': 500},
+                        body={'error': str(api_error)}
+                    )
+
             except APIError as api_error:
                 error_msg = f"OpenAI API Error: {str(api_error)}"
                 logger.error(error_msg)
