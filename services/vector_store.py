@@ -68,26 +68,41 @@ class VectorStore:
     def __init__(self):
         try:
             logger.info("Initializing ChromaDB vector store...")
-            self.client = chromadb.PersistentClient(path=self.CHROMA_PERSIST_DIR)
+
+            # Create ChromaDB client with telemetry disabled
+            self.client = chromadb.PersistentClient(
+                path=self.CHROMA_PERSIST_DIR,
+                settings=chromadb.Settings(
+                    anonymized_telemetry=False
+                )
+            )
+            logger.info("ChromaDB client created successfully")
 
             # Initialize embedding service first
+            logger.info("Initializing embedding service...")
             self.embedding_service = EmbeddingService()
+            logger.info("Embedding service initialized successfully")
 
             # Create embedding function instance
+            logger.info("Creating custom embedding function...")
             embedding_func = CustomEmbeddingFunction(self.embedding_service)
+            logger.info("Custom embedding function created successfully")
 
             # Use the custom embedding function
+            logger.info("Creating/getting collection...")
             self.collection = self.client.get_or_create_collection(
                 name="pdf_documents",
                 embedding_function=embedding_func,
                 metadata={"hnsw:space": "cosine"}
             )
+            logger.info("Collection setup complete")
 
             self.documents: Dict[str, Document] = {}
             self._load_state()
             logger.info(f"Vector store initialized with {len(self.documents)} documents")
         except Exception as e:
             logger.error(f"Error initializing vector store: {str(e)}")
+            logger.error("Full initialization error details:", exc_info=True)
             raise
 
     @classmethod
@@ -126,6 +141,7 @@ class VectorStore:
             except Exception as e:
                 error_msg = f"Error adding document to vector store: {str(e)}"
                 logger.error(error_msg)
+                logger.error("Full error details:", exc_info=True)
                 return False, error_msg
 
             # Store document metadata
@@ -136,6 +152,7 @@ class VectorStore:
         except Exception as e:
             error_msg = f"Error adding document to vector store: {str(e)}"
             logger.error(error_msg)
+            logger.error("Full error details:", exc_info=True)
             return False, error_msg
 
     def search(self, query: str, k: int = 3, similarity_threshold: float = 0.1) -> Tuple[List[VectorSearchResult], Optional[str]]:
