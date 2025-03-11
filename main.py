@@ -12,10 +12,22 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('app.log')
+        logging.FileHandler('app.log', mode='a')
     ]
 )
+
+# Make sure all loggers output to both console and file
+for handler in logging.getLogger().handlers:
+    handler.setLevel(logging.DEBUG)
+
+# Create logger for this module
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Ensure all imported modules also log at DEBUG level
+logging.getLogger('api').setLevel(logging.DEBUG)
+logging.getLogger('web').setLevel(logging.DEBUG)
+logging.getLogger('services').setLevel(logging.DEBUG)
 
 def create_app():
     """Application factory function"""
@@ -38,8 +50,20 @@ def create_app():
         logger.info(f"Method: {request.method}")
         logger.info(f"Path: {request.path}")
         logger.info(f"Headers: {dict(request.headers)}")
+        
+        # Log form data for POST requests
+        if request.method == 'POST':
+            if request.is_json:
+                logger.info(f"JSON Data: {request.get_json(silent=True)}")
+            elif request.form:
+                logger.info(f"Form Data: {dict(request.form)}")
+                
+        # Log files if present
         if request.files:
             logger.info(f"Files: {list(request.files.keys())}")
+            for file_key in request.files:
+                file = request.files[file_key]
+                logger.info(f"File: {file_key}, Filename: {file.filename}, Content Type: {file.content_type}")
 
     # Defer vector store initialization until first request
     @app.before_request
