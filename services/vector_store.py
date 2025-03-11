@@ -10,27 +10,21 @@ from config import EMBEDDING_MODEL
 
 logger = logging.getLogger(__name__)
 
-def chunk_text(text: str, max_chunk_size: int = 8000) -> List[str]:
-    """Split text into larger chunks for better context, trying to break at sentence boundaries."""
-    sentences = text.replace('\n', ' ').split('.')
+def chunk_text(text: str, max_tokens: int = 500) -> List[str]:
+    """Split text into smaller chunks to stay under token limits."""
+    words = text.split()
     chunks = []
     current_chunk = []
-    current_size = 0
+    current_length = 0
 
-    for sentence in sentences:
-        sentence = sentence.strip() + '.'  # Restore the period
-        sentence_size = len(sentence) // 4  # Rough estimate: 1 token ≈ 4 characters
+    for word in words:
+        current_chunk_size = len(current_chunk)
+        if current_chunk_size >= max_tokens:
+            chunks.append(' '.join(current_chunk))
+            current_chunk = []
+        current_chunk.append(word)
 
-        if current_size + sentence_size > max_chunk_size:
-            if current_chunk:  # Save current chunk if it exists
-                chunks.append(' '.join(current_chunk))
-            current_chunk = [sentence]
-            current_size = sentence_size
-        else:
-            current_chunk.append(sentence)
-            current_size += sentence_size
-
-    if current_chunk:  # Add the last chunk
+    if current_chunk:
         chunks.append(' '.join(current_chunk))
 
     return chunks
@@ -241,22 +235,6 @@ class VectorStore:
         except Exception as e:
             logger.warning(f"Could not load existing vector store state: {str(e)}")
             # Continue with empty state
-
-    def get_debug_info(self) -> Dict:
-        """Get debug information about vector store state"""
-        return {
-            "document_count": len(self.documents),
-            "index_size": self.collection.count(),
-            "documents": [
-                {
-                    "id": doc_id,
-                    "filename": doc.metadata.get("filename"),
-                    "size": doc.metadata.get("size"),
-                    "created_at": doc.created_at.isoformat()
-                }
-                for doc_id, doc in self.documents.items()
-            ]
-        }
 
 def init_vector_store():
     """Initialize vector store singleton"""
