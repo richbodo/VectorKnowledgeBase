@@ -31,6 +31,16 @@ def create_app():
     # Disable Flask's default redirect behavior
     app.url_map.strict_slashes = False
 
+    # Add request logging middleware
+    @app.before_request
+    def log_request_info():
+        logger.info("=== New Request ===")
+        logger.info(f"Method: {request.method}")
+        logger.info(f"Path: {request.path}")
+        logger.info(f"Headers: {dict(request.headers)}")
+        if request.files:
+            logger.info(f"Files: {list(request.files.keys())}")
+
     # Defer vector store initialization until first request
     @app.before_request
     def initialize_vector_store():
@@ -56,14 +66,13 @@ def create_app():
     # Add CORS headers to all responses
     @app.after_request
     def after_request(response):
-        logger.debug(f"Processing request: {request.method} {request.path}")
-        logger.debug(f"Request headers: {dict(request.headers)}")
-        logger.debug(f"Response status: {response.status_code}")
-        logger.debug(f"Response headers: {dict(response.headers)}")
+        logger.info("=== Processing Response ===")
+        logger.info(f"Status Code: {response.status_code}")
+        logger.info(f"Response Headers: {dict(response.headers)}")
 
         # For API routes, ensure JSON response
         if request.path.startswith('/api/'):
-            logger.debug("API route detected, ensuring JSON response")
+            logger.info("API route detected, ensuring JSON response")
             # Only set Content-Type if it's not already set (for file uploads etc)
             if 'Content-Type' not in response.headers:
                 response.headers['Content-Type'] = 'application/json'
@@ -88,7 +97,7 @@ def create_app():
 
     @app.errorhandler(500)
     def internal_error(error):
-        logger.error(f"500 error for path: {request.path}")
+        logger.error(f"500 error for path: {request.path}", exc_info=True)
         if request.path.startswith('/api/'):
             return jsonify({"error": "Internal server error"}), 500
         return render_template('error.html', error=error), 500
