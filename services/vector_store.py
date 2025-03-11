@@ -7,7 +7,6 @@ from datetime import datetime
 from models import Document, VectorSearchResult
 from services.embedding_service import EmbeddingService
 from config import EMBEDDING_MODEL
-from openai import APIError, APIStatusError
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +41,17 @@ class CustomEmbeddingFunction(EmbeddingFunction):
 
     def __call__(self, input: List[str]) -> List[List[float]]:
         try:
-            return [self.embedding_service.generate_embedding(text) for text in input]
+            embeddings = []
+            for text in input:
+                try:
+                    embedding = self.embedding_service.generate_embedding(text)
+                    embeddings.append(embedding)
+                except Exception as e:
+                    logger.error(f"Error generating embedding for text chunk: {str(e)}")
+                    raise
+            return embeddings
         except Exception as e:
-            logger.error(f"Error generating embeddings: {str(e)}")
+            logger.error(f"Error in embedding function: {str(e)}")
             raise
 
 class VectorStore:
@@ -109,8 +116,8 @@ class VectorStore:
                         "size": document.metadata.get("size", 0)
                     } for i in range(len(chunks))]
                 )
-            except (APIError, APIStatusError) as api_error:
-                error_msg = f"OpenAI API error: {str(api_error)}"
+            except Exception as e:
+                error_msg = f"Error adding document to vector store: {str(e)}"
                 logger.error(error_msg)
                 return False, error_msg
 

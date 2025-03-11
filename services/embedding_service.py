@@ -1,5 +1,6 @@
 import logging
 import openai
+import os
 from typing import List, Optional
 from config import OPENAI_API_KEY, EMBEDDING_MODEL
 
@@ -15,7 +16,7 @@ class EmbeddingService:
         openai.api_key = OPENAI_API_KEY
         logger.info(f"Using embedding model: {EMBEDDING_MODEL}")
 
-    def generate_embedding(self, text: str) -> Optional[List[float]]:
+    def generate_embedding(self, text: str):
         try:
             if not text.strip():
                 logger.error("Empty text provided for embedding generation")
@@ -25,14 +26,20 @@ class EmbeddingService:
             logger.debug(f"Text preview (first 100 chars): {text[:100]}...")
 
             response = openai.Embedding.create(
-                model=EMBEDDING_MODEL,
-                input=text
+                input=text,
+                model=EMBEDDING_MODEL
             )
+            return response['data'][0]['embedding']
 
-            embedding = response['data'][0]['embedding']
-            logger.info(f"Generated embedding vector of dimension {len(embedding)}")
-            return embedding
-
+        except openai.APIError as api_error:
+            logger.error(f"OpenAI API Error: {api_error.message}")
+            raise Exception(f"OpenAI API error: {str(api_error)}")
+        except openai.APIConnectionError as conn_error:
+            logger.error(f"Connection error with OpenAI API: {conn_error}")
+            raise Exception(f"Connection error: {str(conn_error)}")
+        except openai.OpenAIError as generic_error:
+            logger.error(f"Generic OpenAI error: {generic_error}")
+            raise Exception(f"Embedding generation failed: {str(generic_error)}")
         except Exception as e:
-            logger.error(f"Embedding generation failed: {str(e)}")
-            raise
+            logger.error(f"Unexpected error generating embedding: {str(e)}")
+            raise Exception(f"Unexpected error: {str(e)}")
