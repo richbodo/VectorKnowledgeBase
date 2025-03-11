@@ -41,17 +41,24 @@ class CustomEmbeddingFunction(EmbeddingFunction):
 
     def __call__(self, input: List[str]) -> List[List[float]]:
         try:
+            logger.info(f"Processing {len(input)} text chunks for embedding")
             embeddings = []
-            for text in input:
+            for i, text in enumerate(input):
                 try:
+                    logger.info(f"Generating embedding for chunk {i+1}/{len(input)}")
                     embedding = self.embedding_service.generate_embedding(text)
                     embeddings.append(embedding)
+                    logger.info(f"Successfully generated embedding for chunk {i+1}")
                 except Exception as e:
-                    logger.error(f"Error generating embedding for text chunk: {str(e)}")
+                    logger.error(f"Error generating embedding for text chunk {i+1}: {str(e)}")
+                    logger.error(f"Exception type: {type(e)}")
+                    logger.error("Full exception details:", exc_info=True)
                     raise
+            logger.info(f"Successfully generated {len(embeddings)} embeddings")
             return embeddings
         except Exception as e:
             logger.error(f"Error in embedding function: {str(e)}")
+            logger.error("Full exception details:", exc_info=True)
             raise
 
 class VectorStore:
