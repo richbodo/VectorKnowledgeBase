@@ -37,6 +37,14 @@ def upload_document():
     logger.info(f"Request headers: {dict(request.headers)}")
     logger.info(f"Request form data keys: {list(request.form.keys())}")
     logger.info(f"Request files keys: {list(request.files.keys())}")
+    
+    # Extra detailed logging for upload endpoint
+    if request.method == 'POST':
+        logger.info("Processing POST request to upload endpoint")
+        if request.files:
+            for file_key in request.files:
+                file = request.files[file_key]
+                logger.info(f"Processing file upload: {file.filename} ({file.content_type})")
 
     # Handle OPTIONS request with explicit 204 response
     if request.method == 'OPTIONS':
