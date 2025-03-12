@@ -6,12 +6,14 @@ The API is accessible at: `https://vector-knowledge-base-RichBodo.replit.app`
 The application is deployed using Replit's deployment service which automatically handles HTTPS and domain mapping. No port number is needed in the URL as Replit handles the port forwarding internally.
 
 ## Authentication
-All API endpoints require authentication using the Vector Knowledge Base API key.
+All API endpoints require authentication using the Vector Knowledge Base API key when running in development/test mode.
 
-**Header Required:**
+**Header Required in Development:**
 - `X-API-KEY`: Your Vector Knowledge Base API key (VKB_API_KEY)
 
-**Authentication Errors:**
+**Note:** In deployment mode, authentication is optional. The API will function without the VKB_API_KEY to ensure public accessibility of the deployed service.
+
+**Authentication Errors (Development Mode Only):**
 ```json
 {
   "error": "Missing API key"
