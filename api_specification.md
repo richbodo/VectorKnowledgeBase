@@ -5,15 +5,27 @@ The API is accessible at: `https://vector-knowledge-base-RichBodo.replit.app`
 
 The application is deployed using Replit's deployment service which automatically handles HTTPS and domain mapping. No port number is needed in the URL as Replit handles the port forwarding internally.
 
-## Authentication
-All API endpoints require authentication using the Vector Knowledge Base API key when running in development/test mode.
+## Authentication and Security
+All API endpoints require authentication using the Vector Knowledge Base API key (VKB_API_KEY).
 
-**Header Required in Development:**
+### API Key Configuration
+For the application to work properly, the VKB_API_KEY needs to be configured in two places:
+
+1. **Development Environment:**
+   - Add VKB_API_KEY to your workspace secrets
+   - This enables local testing and development
+
+2. **Production Environment:**
+   - Add VKB_API_KEY to your deployment secrets in the Replit deployments pane
+   - This ensures the deployed application has access to the key
+   - Without this, the deployment will fail even if the workspace secret is set
+
+**Important:** The API key must be properly set in both environments for full functionality.
+
+**Header Required:**
 - `X-API-KEY`: Your Vector Knowledge Base API key (VKB_API_KEY)
 
-**Note:** In deployment mode, authentication is optional. The API will function without the VKB_API_KEY to ensure public accessibility of the deployed service.
-
-**Authentication Errors (Development Mode Only):**
+**Authentication Errors:**
 ```json
 {
   "error": "Missing API key"
@@ -29,7 +41,6 @@ Status Code: 401
 Status Code: 401
 
 ## Endpoints
-
 ### 1. Upload Document
 Upload a PDF document for processing and vector storage. The document will be automatically chunked into smaller segments (approximately 500 tokens each) to stay within OpenAI's embedding model context limits.
 
