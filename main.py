@@ -87,7 +87,7 @@ def create_app():
                     logger.warning("Deployment mode with missing API keys - skipping vector store")
                     app._vector_store_initialized = False
                     return
-                
+
                 logger.info("Starting vector store initialization...")
                 init_vector_store()
                 logger.info("Vector store initialized successfully")
@@ -96,6 +96,10 @@ def create_app():
                 logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
                 app._vector_store_initialized = False
                 # Individual endpoints will handle vector store failures
+                if os.environ.get("REPL_DEPLOYMENT"):
+                    logger.warning("Deployment mode - continuing without vector store")
+                    return
+                raise  # Re-raise in development mode
 
     # Register blueprints
     logger.info("Registering blueprints...")
