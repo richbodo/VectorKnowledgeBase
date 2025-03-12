@@ -236,6 +236,33 @@ class VectorStore:
             logger.warning(f"Could not load existing vector store state: {str(e)}")
             # Continue with empty state
 
+    def get_debug_info(self) -> Dict:
+        """Get debug information about vector store state"""
+        try:
+            return {
+                "document_count": len(self.documents),
+                "collection_info": {
+                    "name": "pdf_documents",
+                    "document_count": self.collection.count() if hasattr(self, 'collection') else 0
+                },
+                "documents": [
+                    {
+                        "id": doc_id,
+                        "filename": doc.metadata.get("filename", "Unknown"),
+                        "size": doc.metadata.get("size", 0),
+                        "created_at": doc.created_at.isoformat() if hasattr(doc, 'created_at') else None
+                    }
+                    for doc_id, doc in self.documents.items()
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Error getting debug info: {str(e)}")
+            return {
+                "error": "Failed to retrieve debug information",
+                "document_count": 0,
+                "documents": []
+            }
+
 def init_vector_store():
     """Initialize vector store singleton"""
     return VectorStore.get_instance()
