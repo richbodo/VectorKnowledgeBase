@@ -7,10 +7,10 @@ from pathlib import Path
 def upload_pdf(file_path):
     """Upload a PDF file to the API"""
     # Get API key from environment
-    api_key = os.environ.get('API_KEY')
+    api_key = os.environ.get('VKB_API_KEY')
     if not api_key:
-        print("Error: API_KEY environment variable is not set")
-        print("Please set it using: export API_KEY=your_api_key")
+        print("Error: VKB_API_KEY environment variable is not set")
+        print("Please set it using: export VKB_API_KEY=your_api_key")
         print("Note: This is different from the API key stored in Replit secrets")
         return False
 
@@ -56,7 +56,7 @@ def main():
     if len(sys.argv) != 2:
         print("Usage: python upload_tool.py <pdf_file>")
         print("Before running, set your API key:")
-        print("  export API_KEY=your_api_key")
+        print("  export VKB_API_KEY=your_api_key")
         print("Then run the script:")
         print("  python upload_tool.py document.pdf")
         sys.exit(1)

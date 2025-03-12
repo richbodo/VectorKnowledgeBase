@@ -22,11 +22,11 @@ fi
 TEST_FILE="${pdf_files[0]}"
 echo -e "${GREEN}Using test file: ${TEST_FILE}${NC}"
 
-# If API_KEY is not set, ask for it
-if [ -z "$API_KEY" ]; then
+# If VKB_API_KEY is not set, ask for it
+if [ -z "$VKB_API_KEY" ]; then
     echo -n "Please enter your API key: "
     read -r user_api_key
-    export API_KEY="$user_api_key"
+    export VKB_API_KEY="$user_api_key"
 fi
 
 # Run the upload tool
@@ -35,7 +35,7 @@ python upload_tool.py "$TEST_FILE"
 RESULT=$?
 
 # Clean up the API key from environment
-unset API_KEY
+unset VKB_API_KEY
 
 # Exit with the same status as the upload tool
 exit $RESULT
