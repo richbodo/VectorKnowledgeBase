@@ -35,10 +35,19 @@ def create_app():
     logger.info("Debug logs will be written to 'app.log' in the project root directory")
 
     app = Flask(__name__)
+    
+    # Detect deployment mode
+    is_deployment = bool(os.environ.get("REPL_DEPLOYMENT", False))
+    
+    # Use a default secret key in deployment if not provided
     app.secret_key = os.environ.get("SESSION_SECRET")
     if not app.secret_key:
-        logger.error("SESSION_SECRET environment variable not set")
-        raise ValueError("SESSION_SECRET environment variable is required")
+        if is_deployment:
+            logger.warning("SESSION_SECRET not set in deployment, using default")
+            app.secret_key = "default-deployment-secret-key"
+        else:
+            logger.error("SESSION_SECRET environment variable not set")
+            raise ValueError("SESSION_SECRET environment variable is required")
 
     # Disable Flask's default redirect behavior
     app.url_map.strict_slashes = False
@@ -70,12 +79,22 @@ def create_app():
     def initialize_vector_store():
         if not hasattr(app, '_vector_store_initialized'):
             try:
+                # Check if we're in deployment with missing API keys
+                if os.environ.get("REPL_DEPLOYMENT") and (
+                    not os.environ.get("OPENAI_API_KEY") or 
+                    not os.environ.get("VKB_API_KEY")
+                ):
+                    logger.warning("Deployment mode with missing API keys - skipping vector store")
+                    app._vector_store_initialized = False
+                    return
+                
                 logger.info("Starting vector store initialization...")
                 init_vector_store()
                 logger.info("Vector store initialized successfully")
                 app._vector_store_initialized = True
             except Exception as e:
                 logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
+                app._vector_store_initialized = False
                 # Individual endpoints will handle vector store failures
 
     # Register blueprints

@@ -9,15 +9,29 @@ logger = logging.getLogger(__name__)
 class EmbeddingService:
     def __init__(self):
         logger.info("Initializing EmbeddingService")
+        
+        # Import here to avoid circular imports
+        from config import IS_DEPLOYMENT
+        
         if not OPENAI_API_KEY or not OPENAI_API_KEY.startswith('sk-'):
             logger.error("Invalid or missing OPENAI_API_KEY")
-            raise ValueError("OPENAI_API_KEY not configured correctly")
-
-        openai.api_key = OPENAI_API_KEY
-        logger.info(f"Using embedding model: {EMBEDDING_MODEL}")
+            if IS_DEPLOYMENT:
+                logger.warning("Running in deployment mode with missing API key")
+                self.api_available = False
+            else:
+                raise ValueError("OPENAI_API_KEY not configured correctly")
+        else:
+            self.api_available = True
+            openai.api_key = OPENAI_API_KEY
+            logger.info(f"Using embedding model: {EMBEDDING_MODEL}")
 
     def generate_embedding(self, text: str):
         try:
+            if not hasattr(self, 'api_available') or not self.api_available:
+                logger.warning("Embedding API not available - returning dummy embedding")
+                # Return a small dummy embedding in deployment mode
+                return [0.0] * 10
+                
             if not text.strip():
                 logger.error("Empty text provided for embedding generation")
                 return None
