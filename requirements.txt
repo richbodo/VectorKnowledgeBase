@@ -19,3 +19,4 @@ api>=0.0.7
 numpy>=2.2.3
 uvicorn>=0.34.0
 requests
+click
