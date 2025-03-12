@@ -140,7 +140,8 @@ class VectorStore:
 
             # Store document metadata
             self.documents[document.id] = document
-            logger.info(f"Added document with {len(chunks)} chunks")
+            logger.info(f"Added document {document.id} with {len(chunks)} chunks")
+            logger.info(f"Current document count: {len(self.documents)}")
             return True, None
 
         except Exception as e:
@@ -215,25 +216,36 @@ class VectorStore:
     def _load_state(self):
         """Load document metadata from ChromaDB"""
         try:
+            logger.info("Loading state from ChromaDB...")
             all_results = self.collection.get()
             if not all_results["ids"]:
+                logger.info("No documents found in ChromaDB")
                 return
+
+            logger.info(f"Found {len(all_results['ids'])} entries in ChromaDB")
+
+            # Track processed document IDs to avoid duplicates
+            processed_doc_ids = set()
 
             for metadata in all_results["metadatas"]:
                 doc_id = metadata["document_id"]
-                if doc_id not in self.documents:
-                    self.documents[doc_id] = Document(
-                        id=doc_id,
-                        content="",  # Only store metadata
-                        metadata={k: v for k, v in metadata.items()
-                                 if k not in ["document_id", "chunk_index", "total_chunks"]},
-                        created_at=datetime.now()
-                    )
+                if doc_id not in processed_doc_ids:
+                    processed_doc_ids.add(doc_id)
+                    if doc_id not in self.documents:
+                        self.documents[doc_id] = Document(
+                            id=doc_id,
+                            content="",  # Only store metadata
+                            metadata={k: v for k, v in metadata.items()
+                                     if k not in ["document_id", "chunk_index", "total_chunks"]},
+                            created_at=datetime.now()
+                        )
 
-            logger.info(f"Loaded {len(self.documents)} documents from ChromaDB")
+            logger.info(f"Loaded {len(self.documents)} unique documents from ChromaDB")
+            logger.info(f"Document IDs: {list(self.documents.keys())}")
 
         except Exception as e:
-            logger.warning(f"Could not load existing vector store state: {str(e)}")
+            logger.error(f"Could not load existing vector store state: {str(e)}")
+            logger.error("Full error details:", exc_info=True)
             # Continue with empty state
 
     def get_debug_info(self) -> Dict:
