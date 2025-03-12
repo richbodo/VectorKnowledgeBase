@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Colors for better output readability
@@ -18,6 +17,13 @@ if [ -z "$QUERY" ]; then
   exit 1
 fi
 
+# Get API key from environment
+API_KEY="${API_KEY:-}"
+if [ -z "$API_KEY" ]; then
+  echo -e "${RED}Error: API_KEY environment variable is not set${NC}"
+  exit 1
+fi
+
 echo "Searching for: \"$QUERY\""
 echo ""
 
@@ -26,6 +32,7 @@ echo "Making request to http://localhost:8080/api/query..."
 curl -v -X POST \
      -H "Content-Type: application/json" \
      -H "Accept: application/json" \
+     -H "X-API-KEY: $API_KEY" \
      -d "{\"query\": \"$QUERY\"}" \
      http://localhost:8080/api/query
 

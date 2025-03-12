@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Colors for better output readability
@@ -24,6 +23,13 @@ if [ ! -f "$TEST_FILE" ]; then
   exit 1
 fi
 
+# Get API key from environment
+API_KEY="${API_KEY:-}"
+if [ -z "$API_KEY" ]; then
+  echo -e "${RED}Error: API_KEY environment variable is not set${NC}"
+  exit 1
+fi
+
 echo "Testing file upload with: $TEST_FILE"
 echo ""
 
@@ -31,6 +37,7 @@ echo ""
 echo "Making request to http://localhost:8080/api/upload..."
 curl -v -X POST -F "file=@$TEST_FILE" \
      -H "Accept: application/json" \
+     -H "X-API-KEY: $API_KEY" \
      http://localhost:8080/api/upload
 
 echo ""

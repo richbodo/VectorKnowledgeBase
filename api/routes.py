@@ -9,6 +9,7 @@ from services.pdf_processor import PDFProcessor
 from services.vector_store import VectorStore
 from models import Document
 from config import MAX_FILE_SIZE, ALLOWED_FILE_TYPES
+from api.auth import require_api_key
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('api', __name__, url_prefix='/api')  # Add explicit URL prefix
@@ -23,7 +24,7 @@ def json_response(payload, status=200):
     response.mimetype = 'application/json'
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-API-KEY'
     response.headers.pop('Location', None)  # Prevent any redirects
     response.autocorrect_location_header = False
 
@@ -31,13 +32,14 @@ def json_response(payload, status=200):
     return response
 
 @bp.route('upload', methods=['POST', 'OPTIONS'])  # Remove leading slash since url_prefix adds it
+@require_api_key
 def upload_document():
     """Upload and process a PDF document"""
     logger.info(f"API: Received {request.method} request to /api/upload")
     logger.info(f"Request headers: {dict(request.headers)}")
     logger.info(f"Request form data keys: {list(request.form.keys())}")
     logger.info(f"Request files keys: {list(request.files.keys())}")
-    
+
     # Extra detailed logging for upload endpoint
     if request.method == 'POST':
         logger.info("Processing POST request to upload endpoint")
@@ -52,7 +54,7 @@ def upload_document():
         response = make_response('', 204)
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-API-KEY'
         return response
 
     try:
@@ -132,6 +134,7 @@ def upload_document():
         return json_response({"error": error_msg}, 500)
 
 @bp.route('/query', methods=['POST'])
+@require_api_key
 def query_documents():
     """Query endpoint for semantic search"""
     try:
