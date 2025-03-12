@@ -1,14 +1,14 @@
 # PDF Processing API Specification
 
 ## Base URL
-The API is accessible at: `https://VectorKnowledgeBase.RichBodo.repl.co`
+The API is accessible at: `https://vector-knowledge-base-RichBodo.replit.app`
 
 The application is deployed using Replit's deployment service which automatically handles HTTPS and domain mapping. No port number is needed in the URL as Replit handles the port forwarding internally.
 
 ## Endpoints
 
 ### 1. Upload Document
-Upload a PDF document for processing and vector storage.
+Upload a PDF document for processing and vector storage. The document will be automatically chunked into smaller segments (approximately 500 tokens each) to stay within OpenAI's embedding model context limits.
 
 **Endpoint:** `POST /api/upload`
 
@@ -24,7 +24,12 @@ Upload a PDF document for processing and vector storage.
 {
   "success": true,
   "message": "Document processed successfully",
-  "document_id": "uuid-string"
+  "document_id": "uuid-string",
+  "metadata": {
+    "filename": "example.pdf",
+    "size": 1234567,
+    "content_type": "application/pdf"
+  }
 }
 ```
 
@@ -42,21 +47,15 @@ Upload a PDF document for processing and vector storage.
 
 **Example Usage:**
 ```bash
-# Using curl with explicit content type
-curl -X POST -F "file=@document.pdf;type=application/pdf" \
-     -H "Accept: application/json" \
-     https://vector-knowledge-base-RichBodo.repl.co/api/upload
-
-# Simple curl upload (if the file has .pdf extension)
 curl -X POST -F "file=@document.pdf" \
      -H "Accept: application/json" \
-     https://vector-knowledge-base-RichBodo.repl.co/api/upload
+     https://vector-knowledge-base-RichBodo.replit.app/api/upload
 ```
 
 ### 2. Query Documents
-Search through uploaded documents using semantic similarity.
+Search through uploaded documents using semantic similarity. Results are retrieved from chunked document segments and ranked by relevance.
 
-**Endpoint:** `POST /query`
+**Endpoint:** `POST /api/query`
 
 **Content-Type:** `application/json`
 
@@ -81,17 +80,6 @@ Search through uploaded documents using semantic similarity.
         "uploaded_at": "2025-03-06T23:35:27.648Z",
         "file_size": "1.2MB"
       }
-    },
-    {
-      "title": "another-document.pdf",
-      "content": "Another relevant excerpt",
-      "score": 0.75,
-      "metadata": {
-        "source": "Part 1 of 3",
-        "file_type": "application/pdf",
-        "uploaded_at": "2025-03-06T22:15:12.331Z",
-        "file_size": "2.5MB"
-      }
     }
   ]
 }
@@ -106,24 +94,56 @@ Search through uploaded documents using semantic similarity.
 
 **Status Codes:**
 - 200: Success
-- 400: Invalid request (missing query)
+- 400: Invalid request (missing or empty query)
 - 500: Server error
 
 **Example Usage:**
 ```bash
-curl -X POST https://pdf-processor.johndoe.repl.co/query \
+curl -X POST https://vector-knowledge-base-RichBodo.replit.app/api/query \
   -H "Content-Type: application/json" \
   -d '{"query": "What are the main points discussed in the document?"}'
 ```
 
-## Error Handling
+### 3. Monitoring Endpoints
+
+#### Health Check
+Get system health and resource usage information.
+
+**Endpoint:** `GET /web/monitoring/health`
+
+**Response:** HTML page with health metrics including:
+- Memory usage (RSS, VMS)
+- CPU utilization
+- Process information
+- Vector store statistics (document count, collection size)
+
+#### OpenAI Connection Test
+Test OpenAI API connectivity and configuration.
+
+**Endpoint:** `GET /web/monitoring/test-openai`
+
+**Response:** HTML page with diagnostic information including:
+- API key validation
+- Embedding model test results
+- Error details if any
+
+## Technical Details
+
+### Document Processing
+- Documents are automatically chunked into smaller segments (approximately 500 tokens each)
+- Each chunk is processed independently for embedding generation
+- Chunks are stored with metadata linking them to the original document
+- Vector similarity search is performed across all chunks
+- ChromaDB is used for vector storage with telemetry disabled
+
+### Error Handling
 
 Common error responses include:
 
 1. File too large:
 ```json
 {
-  "error": "File size exceeds maximum limit (50MB)"
+  "error": "File size (X bytes) exceeds maximum limit (50MB)"
 }
 ```
 
@@ -141,7 +161,14 @@ Common error responses include:
 }
 ```
 
-4. No results:
+4. OpenAI API errors:
+```json
+{
+  "error": "Error generating embeddings: [Specific OpenAI API error message]"
+}
+```
+
+5. No results:
 ```json
 {
   "error": "No relevant matches found"
@@ -149,7 +176,8 @@ Common error responses include:
 ```
 
 ## Notes
-- The query endpoint uses semantic similarity to find relevant document sections
-- Results are ordered by relevance score (0-1, higher is better)
-- The API automatically chunks documents and maintains context
+- The API implements robust error handling with detailed error messages
+- All endpoints support CORS with appropriate headers
+- The application uses ChromaDB for vector storage with telemetry disabled
+- Text chunking ensures compliance with OpenAI's token limits
 - All responses use UTF-8 encoding

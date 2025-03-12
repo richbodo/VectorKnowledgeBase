@@ -132,17 +132,22 @@ class VectorStore:
                         "size": document.metadata.get("size", 0)
                     } for i in range(len(chunks))]
                 )
+
+                # Immediately update in-memory state with the new document
+                self.documents[document.id] = document
+                logger.info(f"Added document {document.id} with {len(chunks)} chunks")
+                logger.info(f"Current document count: {len(self.documents)}")
+
+                # Verify document was added to ChromaDB
+                chroma_count = self.collection.count()
+                logger.info(f"ChromaDB collection count: {chroma_count}")
+                return True, None
+
             except Exception as e:
                 error_msg = f"Error adding document to vector store: {str(e)}"
                 logger.error(error_msg)
                 logger.error("Full error details:", exc_info=True)
                 return False, error_msg
-
-            # Store document metadata
-            self.documents[document.id] = document
-            logger.info(f"Added document {document.id} with {len(chunks)} chunks")
-            logger.info(f"Current document count: {len(self.documents)}")
-            return True, None
 
         except Exception as e:
             error_msg = f"Error adding document to vector store: {str(e)}"
@@ -251,6 +256,9 @@ class VectorStore:
     def get_debug_info(self) -> Dict:
         """Get debug information about vector store state"""
         try:
+            # Force a state reload to ensure latest data
+            self._load_state()
+
             return {
                 "document_count": len(self.documents),
                 "collection_info": {
@@ -277,4 +285,14 @@ class VectorStore:
 
 def init_vector_store():
     """Initialize vector store singleton"""
-    return VectorStore.get_instance()
+    try:
+        logger.info("Initializing vector store singleton...")
+        instance = VectorStore.get_instance()
+        logger.info("Vector store initialization complete")
+        debug_info = instance.get_debug_info()
+        logger.info(f"Vector store state: {debug_info}") #Removed json.dumps as it's not strictly needed and might cause issues.
+        return instance
+    except Exception as e:
+        logger.error(f"Error initializing vector store: {str(e)}")
+        logger.error("Full error details:", exc_info=True)
+        raise
