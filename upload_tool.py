@@ -10,6 +10,8 @@ def upload_pdf(file_path):
     api_key = os.environ.get('API_KEY')
     if not api_key:
         print("Error: API_KEY environment variable is not set")
+        print("Please set it using: export API_KEY=your_api_key")
+        print("Note: This is different from the API key stored in Replit secrets")
         return False
 
     if not os.path.exists(file_path):
@@ -53,7 +55,10 @@ def upload_pdf(file_path):
 def main():
     if len(sys.argv) != 2:
         print("Usage: python upload_tool.py <pdf_file>")
-        print("Example: API_KEY=your_api_key python upload_tool.py document.pdf")
+        print("Before running, set your API key:")
+        print("  export API_KEY=your_api_key")
+        print("Then run the script:")
+        print("  python upload_tool.py document.pdf")
         sys.exit(1)
 
     file_path = sys.argv[1]

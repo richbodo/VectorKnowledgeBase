@@ -13,7 +13,11 @@ QUERY="$1"
 
 if [ -z "$QUERY" ]; then
   echo -e "${RED}Error: No query specified${NC}"
-  echo "Usage: ./test_query.sh \"your search query\""
+  echo "Usage:"
+  echo "First, set your API key:"
+  echo "  export API_KEY=your_api_key"
+  echo "Then run the script:"
+  echo "  ./test_query.sh \"your search query\""
   exit 1
 fi
 
@@ -21,6 +25,8 @@ fi
 API_KEY="${API_KEY:-}"
 if [ -z "$API_KEY" ]; then
   echo -e "${RED}Error: API_KEY environment variable is not set${NC}"
+  echo "Please set it using: export API_KEY=your_api_key"
+  echo "Note: This is different from the API key stored in Replit secrets"
   exit 1
 fi
 
