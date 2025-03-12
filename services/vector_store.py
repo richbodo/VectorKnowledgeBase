@@ -295,4 +295,8 @@ def init_vector_store():
     except Exception as e:
         logger.error(f"Error initializing vector store: {str(e)}")
         logger.error("Full error details:", exc_info=True)
+        # In deployment mode, return None instead of raising exception
+        if os.environ.get("REPL_DEPLOYMENT"):
+            logger.warning("Deployment mode - continuing without vector store")
+            return None
         raise

@@ -1,14 +1,17 @@
 import os
 
+# Detect deployment environment
+IS_DEPLOYMENT = bool(os.environ.get("REPL_DEPLOYMENT", False))
+
 # OpenAI Configuration
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
+if not OPENAI_API_KEY and not IS_DEPLOYMENT:
     raise ValueError("OPENAI_API_KEY environment variable is not set")
 EMBEDDING_MODEL = "text-embedding-3-small"  
 
 # API Configuration
 VKB_API_KEY = os.environ.get("VKB_API_KEY")
-if not VKB_API_KEY:
+if not VKB_API_KEY and not IS_DEPLOYMENT:
     raise ValueError("VKB_API_KEY environment variable is not set")
 
 # ChromaDB Configuration
