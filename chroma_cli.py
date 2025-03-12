@@ -2,7 +2,6 @@
 import click
 import chromadb
 import json
-from pathlib import Path
 import sys
 
 # Use the same ChromaDB directory as the main application
@@ -27,105 +26,90 @@ def list_collections():
     """List all collections in the database"""
     client = get_client()
     collections = client.list_collections()
-    
+
     click.echo("\nChromaDB Collections:")
     click.echo("===================")
-    
+
     if not collections:
         click.echo("No collections found.")
         return
-        
-    for collection in collections:
-        click.echo(f"\nCollection: {collection.name}")
-        click.echo(f"Number of documents: {collection.count()}")
+
+    for coll_name in collections:
+        click.echo(f"\nCollection: {coll_name}")
+        try:
+            collection = client.get_collection(name=coll_name)
+            count = collection.count()
+            click.echo(f"Number of documents: {count}")
+        except Exception as e:
+            click.echo("Could not retrieve details for this collection.")
 
 @cli.command()
 @click.argument('collection_name')
-def show_collection(collection_name):
-    """Show details of a specific collection"""
+@click.option('--limit', '-n', default=10, help='Number of documents to show')
+def list_documents(collection_name, limit):
+    """List documents in a collection"""
     client = get_client()
     try:
-        collection = client.get_collection(collection_name)
-        results = collection.get()
-        
-        click.echo(f"\nCollection: {collection_name}")
-        click.echo("===================")
-        click.echo(f"Total documents: {collection.count()}")
-        
-        if results["ids"]:
-            click.echo("\nDocuments:")
-            for i, (doc_id, metadata) in enumerate(zip(results["ids"], results["metadatas"])):
-                click.echo(f"\n{i+1}. Document ID: {doc_id}")
+        collection = client.get_collection(name=collection_name)
+        results = collection.get(limit=limit)
+
+        click.echo(f"\nDocuments in collection '{collection_name}':")
+        click.echo("=" * (len(collection_name) + 24))
+
+        if not results['ids']:
+            click.echo("No documents found.")
+            return
+
+        for i, (doc_id, metadata) in enumerate(zip(results['ids'], results['metadatas'])):
+            click.echo(f"\n{i+1}. Document ID: {doc_id}")
+            if metadata:
                 click.echo(f"   Metadata: {json.dumps(metadata, indent=2)}")
+
+        total_docs = collection.count()
+        if total_docs > limit:
+            click.echo(f"\nShowing {limit} of {total_docs} documents. Use --limit option to show more.")
+
     except Exception as e:
-        click.echo(f"Error: Collection '{collection_name}' not found or error accessing it.", err=True)
-        sys.exit(1)
+        click.echo(f"Error: Collection '{collection_name}' not found or error accessing it: {str(e)}")
 
 @cli.command()
 @click.argument('collection_name')
 @click.argument('document_id')
-def delete_document(collection_name, document_id):
+@click.option('--force', '-f', is_flag=True, help='Skip confirmation prompt')
+def delete_document(collection_name, document_id, force):
     """Delete a specific document from a collection"""
-    if not click.confirm(f"Are you sure you want to delete document '{document_id}' from collection '{collection_name}'?"):
-        click.echo("Operation cancelled.")
-        return
-        
     client = get_client()
     try:
-        collection = client.get_collection(collection_name)
-        collection.delete(ids=[document_id])
-        click.echo(f"Successfully deleted document '{document_id}' from collection '{collection_name}'")
-    except Exception as e:
-        click.echo(f"Error deleting document: {str(e)}", err=True)
-        sys.exit(1)
+        collection = client.get_collection(name=collection_name)
 
-@cli.command()
-@click.argument('collection_name')
-def delete_collection(collection_name):
-    """Delete an entire collection"""
-    if not click.confirm(f"WARNING: Are you sure you want to delete the entire collection '{collection_name}'?\nThis action cannot be undone!", abort=True):
-        return
-        
-    client = get_client()
-    try:
-        client.delete_collection(collection_name)
-        click.echo(f"Successfully deleted collection '{collection_name}'")
-    except Exception as e:
-        click.echo(f"Error deleting collection: {str(e)}", err=True)
-        sys.exit(1)
+        # Get document details before deletion
+        results = collection.get(ids=[document_id])
 
-@cli.command()
-@click.argument('collection_name')
-@click.argument('query')
-@click.option('--limit', '-n', default=5, help='Number of results to return')
-def search(collection_name, query, limit):
-    """Search for documents in a collection"""
-    client = get_client()
-    try:
-        collection = client.get_collection(collection_name)
-        results = collection.query(
-            query_texts=[query],
-            n_results=limit
-        )
-        
-        click.echo(f"\nSearch Results for: '{query}'")
-        click.echo("===================")
-        
-        if not results["ids"][0]:
-            click.echo("No results found.")
+        if not results['ids']:
+            click.echo(f"Error: Document '{document_id}' not found in collection '{collection_name}'")
             return
-            
-        for i, (doc_id, document, metadata) in enumerate(zip(
-            results["ids"][0],
-            results["documents"][0],
-            results["metadatas"][0]
-        )):
-            click.echo(f"\n{i+1}. Document ID: {doc_id}")
-            click.echo(f"   Content: {document[:200]}...")
-            click.echo(f"   Metadata: {json.dumps(metadata, indent=2)}")
-            
+
+        # Display document details
+        click.echo("\nDocument to delete:")
+        click.echo("==================")
+        click.echo(f"ID: {document_id}")
+        if results['metadatas'][0]:
+            click.echo("Metadata:")
+            click.echo(json.dumps(results['metadatas'][0], indent=2))
+
+        # If force flag is set or user confirms, proceed with deletion
+        if force or click.confirm("\nAre you sure you want to delete this document?", default=False):
+            try:
+                collection.delete(ids=[document_id])
+                click.echo(f"\nSuccessfully deleted document '{document_id}' from collection '{collection_name}'")
+            except Exception as e:
+                click.echo(f"\nError deleting document: {str(e)}")
+                sys.exit(1)
+        else:
+            click.echo("\nDeletion cancelled.")
+
     except Exception as e:
-        click.echo(f"Error searching collection: {str(e)}", err=True)
+        click.echo(f"Error: {str(e)}")
         sys.exit(1)
 
 if __name__ == '__main__':
