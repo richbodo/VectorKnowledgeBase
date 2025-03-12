@@ -8,15 +8,14 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}Testing PDF Upload API${NC}"
 echo "========================================"
 
-# Test the upload endpoint with a PDF file
-# Change the path to your test PDF file
+# Get query from command line argument
 TEST_FILE="$1"
 
 if [ -z "$TEST_FILE" ]; then
   echo -e "${RED}Error: No test file specified${NC}"
   echo "Usage:"
   echo "First, set your API key:"
-  echo "  export API_KEY=your_api_key"
+  echo "  export VKB_API_KEY=your_api_key"
   echo "Then run the script:"
   echo "  ./test_api.sh <path_to_pdf_file>"
   exit 1
@@ -28,10 +27,10 @@ if [ ! -f "$TEST_FILE" ]; then
 fi
 
 # Get API key from environment
-API_KEY="${API_KEY:-}"
-if [ -z "$API_KEY" ]; then
-  echo -e "${RED}Error: API_KEY environment variable is not set${NC}"
-  echo "Please set it using: export API_KEY=your_api_key"
+VKB_API_KEY="${VKB_API_KEY:-}"
+if [ -z "$VKB_API_KEY" ]; then
+  echo -e "${RED}Error: VKB_API_KEY environment variable is not set${NC}"
+  echo "Please set it using: export VKB_API_KEY=your_api_key"
   echo "Note: This is different from the API key stored in Replit secrets"
   exit 1
 fi
@@ -43,7 +42,7 @@ echo ""
 echo "Making request to http://localhost:8080/api/upload..."
 curl -v -X POST -F "file=@$TEST_FILE" \
      -H "Accept: application/json" \
-     -H "X-API-KEY: $API_KEY" \
+     -H "X-API-KEY: $VKB_API_KEY" \
      http://localhost:8080/api/upload
 
 echo ""
