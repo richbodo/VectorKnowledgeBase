@@ -5,6 +5,27 @@ The API is accessible at: `https://vector-knowledge-base-RichBodo.replit.app`
 
 The application is deployed using Replit's deployment service which automatically handles HTTPS and domain mapping. No port number is needed in the URL as Replit handles the port forwarding internally.
 
+## Authentication
+All API endpoints require authentication using the Vector Knowledge Base API key.
+
+**Header Required:**
+- `X-API-KEY`: Your Vector Knowledge Base API key (VKB_API_KEY)
+
+**Authentication Errors:**
+```json
+{
+  "error": "Missing API key"
+}
+```
+Status Code: 401
+
+```json
+{
+  "error": "Invalid API key"
+}
+```
+Status Code: 401
+
 ## Endpoints
 
 ### 1. Upload Document
@@ -43,12 +64,14 @@ Upload a PDF document for processing and vector storage. The document will be au
 **Status Codes:**
 - 200: Success
 - 400: Invalid request (file missing, wrong type, or too large)
+- 401: Authentication error (missing or invalid API key)
 - 500: Server error
 
 **Example Usage:**
 ```bash
 curl -X POST -F "file=@document.pdf" \
      -H "Accept: application/json" \
+     -H "X-API-KEY: your_vkb_api_key" \
      https://vector-knowledge-base-RichBodo.replit.app/api/upload
 ```
 
@@ -95,12 +118,15 @@ Search through uploaded documents using semantic similarity. Results are retriev
 **Status Codes:**
 - 200: Success
 - 400: Invalid request (missing or empty query)
+- 401: Authentication error (missing or invalid API key)
 - 500: Server error
 
 **Example Usage:**
 ```bash
 curl -X POST https://vector-knowledge-base-RichBodo.replit.app/api/query \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-API-KEY: your_vkb_api_key" \
   -d '{"query": "What are the main points discussed in the document?"}'
 ```
 
@@ -140,35 +166,47 @@ Test OpenAI API connectivity and configuration.
 
 Common error responses include:
 
-1. File too large:
+1. Authentication errors:
+```json
+{
+  "error": "Missing API key"
+}
+```
+```json
+{
+  "error": "Invalid API key"
+}
+```
+
+2. File too large:
 ```json
 {
   "error": "File size (X bytes) exceeds maximum limit (50MB)"
 }
 ```
 
-2. Invalid file type:
+3. Invalid file type:
 ```json
 {
   "error": "Invalid file type. Only PDF files are allowed"
 }
 ```
 
-3. Empty query:
+4. Empty query:
 ```json
 {
   "error": "Query cannot be empty"
 }
 ```
 
-4. OpenAI API errors:
+5. OpenAI API errors:
 ```json
 {
   "error": "Error generating embeddings: [Specific OpenAI API error message]"
 }
 ```
 
-5. No results:
+6. No results:
 ```json
 {
   "error": "No relevant matches found"
@@ -181,3 +219,4 @@ Common error responses include:
 - The application uses ChromaDB for vector storage with telemetry disabled
 - Text chunking ensures compliance with OpenAI's token limits
 - All responses use UTF-8 encoding
+- Authentication is required for all API endpoints using the VKB_API_KEY
