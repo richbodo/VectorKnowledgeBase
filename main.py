@@ -34,6 +34,10 @@ def create_app():
     logger.info("=== Starting Flask PDF Processing Application ===")
     logger.info("Debug logs will be written to 'app.log' in the project root directory")
 
+    # Ensure collection exists at startup
+    from services.vector_store import ensure_collection_exists
+    ensure_collection_exists()
+    
     app = Flask(__name__)
     
     # Detect deployment mode
