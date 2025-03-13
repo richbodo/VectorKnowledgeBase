@@ -70,7 +70,8 @@
                         method: 'POST',
                         body: formData,
                         headers: {
-                            'Accept': 'application/json'
+                            'Accept': 'application/json',
+                            'X-API-KEY': '{{ api_key }}'  // Add API key from template
                         }
                     })
                     .then(response => {
@@ -126,10 +127,10 @@
                     <div class="mb-3">
                         <label for="query" class="form-label">Enter your query</label>
                         <textarea class="form-control" id="query" name="query" rows="3" required
-                                placeholder="Ask questions about your uploaded documents. For example:
-- What are the main topics discussed in the document?
-- Find sections related to [specific topic]
-- Summarize the key points">{{ query if query else '' }}</textarea>
+                                 placeholder="Ask questions about your uploaded documents. For example:
+                                - What are the main topics discussed in the document?
+                                - Find sections related to [specific topic]
+                                - Summarize the key points">{{ query if query else '' }}</textarea>
                         <div class="form-text text-muted">
                             Enter any natural language question about the content of your uploaded PDFs.
                         </div>
@@ -146,6 +147,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'X-API-KEY': '{{ api_key }}'  // Add API key from template
                         },
                         body: JSON.stringify({ query: query })
                     })
