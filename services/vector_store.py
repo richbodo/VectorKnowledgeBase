@@ -253,49 +253,81 @@ class VectorStore:
             collection_count = self.collection.count()
             logger.info(f"Collection reports {collection_count} documents")
             
-            # Try to get all data with explicit empty where clause
-            all_results = self.collection.get(where={})
-            
-            if not all_results["ids"]:
-                logger.info("No documents found in ChromaDB")
-                # Log database path for diagnostics
-                logger.info(f"ChromaDB path: {self.CHROMA_PERSIST_DIR}")
-                logger.info(f"ChromaDB directory exists: {os.path.exists(self.CHROMA_PERSIST_DIR)}")
-                if os.path.exists(self.CHROMA_PERSIST_DIR):
-                    logger.info(f"Directory contents: {os.listdir(self.CHROMA_PERSIST_DIR)}")
+            if collection_count == 0:
+                logger.info("No documents found in ChromaDB based on count")
                 return
-
-            logger.info(f"Found {len(all_results['ids'])} entries in ChromaDB")
-            
-            # Log the first few IDs and metadata for debugging
-            logger.info(f"Sample IDs: {all_results['ids'][:3]}")
-            logger.info(f"Sample metadata: {all_results['metadatas'][:3]}")
-
-            # Track processed document IDs to avoid duplicates
-            processed_doc_ids = set()
-
-            for i, metadata in enumerate(all_results["metadatas"]):
-                if not metadata or "document_id" not in metadata:
-                    logger.warning(f"Missing document_id in metadata for item {i}")
-                    continue
+                
+            # Get all document chunks
+            try:
+                logger.info("Fetching all document chunks from ChromaDB")
+                all_results = self.collection.get()
+                
+                if not all_results["ids"] or len(all_results["ids"]) == 0:
+                    logger.warning("Collection count is non-zero but no chunks returned")
+                    return
                     
-                doc_id = metadata["document_id"]
-                if doc_id not in processed_doc_ids:
-                    processed_doc_ids.add(doc_id)
-                    if doc_id not in self.documents:
-                        self.documents[doc_id] = Document(
+                logger.info(f"Found {len(all_results['ids'])} chunks in ChromaDB")
+                
+                # Extract unique document IDs and their metadata
+                unique_docs = {}
+                
+                for i, (chunk_id, metadata) in enumerate(zip(all_results["ids"], all_results["metadatas"])):
+                    if not metadata or "document_id" not in metadata:
+                        logger.warning(f"Missing document_id in metadata for chunk {chunk_id}")
+                        continue
+                        
+                    doc_id = metadata["document_id"]
+                    
+                    # Only process each document once
+                    if doc_id not in unique_docs:
+                        # Create basic metadata
+                        doc_metadata = {
+                            "filename": metadata.get("filename", "Unknown"),
+                            "content_type": metadata.get("content_type", "Unknown"),
+                            "size": metadata.get("size", 0)
+                        }
+                        
+                        # Create document object
+                        unique_docs[doc_id] = Document(
                             id=doc_id,
-                            content="",  # Only store metadata
-                            metadata={k: v for k, v in metadata.items()
-                                     if k not in ["document_id", "chunk_index", "total_chunks"]},
+                            content="",  # We don't load content, just metadata
+                            metadata=doc_metadata,
                             created_at=datetime.now()
                         )
-
-            logger.info(f"Loaded {len(self.documents)} unique documents from ChromaDB")
-            if self.documents:
+                
+                # Update the documents dict
+                self.documents = unique_docs
+                
+                logger.info(f"Loaded {len(self.documents)} unique documents from ChromaDB")
                 logger.info(f"Document IDs: {list(self.documents.keys())}")
-            else:
-                logger.warning("No documents were loaded into memory despite finding entries in ChromaDB")
+                
+            except Exception as query_error:
+                logger.error(f"Error querying all documents: {str(query_error)}")
+                logger.error("Full query error details:", exc_info=True)
+                
+                # Try alternative approach with empty where clause
+                logger.info("Trying alternative query with empty where clause")
+                all_results = self.collection.get(where={})
+                
+                if all_results["ids"]:
+                    logger.info(f"Alternative query found {len(all_results['ids'])} chunks")
+                    # Process document IDs as above
+                    unique_doc_ids = set()
+                    for metadata in all_results["metadatas"]:
+                        if metadata and "document_id" in metadata:
+                            doc_id = metadata["document_id"]
+                            unique_doc_ids.add(doc_id)
+                            if doc_id not in self.documents:
+                                self.documents[doc_id] = Document(
+                                    id=doc_id,
+                                    content="",
+                                    metadata={k: v for k, v in metadata.items()
+                                            if k not in ["document_id", "chunk_index", "total_chunks"]},
+                                    created_at=datetime.now()
+                                )
+                    logger.info(f"Alternative query loaded {len(self.documents)} documents")
+                else:
+                    logger.warning("Alternative query also found no documents")
 
         except Exception as e:
             logger.error(f"Could not load existing vector store state: {str(e)}")
