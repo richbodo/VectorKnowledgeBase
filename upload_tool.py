@@ -27,10 +27,10 @@ def upload_pdf(file_path):
                 'X-API-KEY': api_key
             }
 
-            # Make the request to the API
+            # Make the request to the API using 0.0.0.0 instead of localhost
             print(f"\nSending POST request to upload {file_path}...")
             response = requests.post(
-                'http://localhost:8080/api/upload',
+                'http://0.0.0.0:8080/api/upload',
                 files=files,
                 headers=headers
             )
