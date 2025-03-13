@@ -3,6 +3,7 @@ import click
 import chromadb
 import json
 import sys
+import os
 
 # Use the same ChromaDB directory as the main application
 CHROMA_PERSIST_DIR = "chroma_db"
