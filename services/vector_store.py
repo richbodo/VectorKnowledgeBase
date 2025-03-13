@@ -57,9 +57,10 @@ class CustomEmbeddingFunction(EmbeddingFunction):
 
 class VectorStore:
     _instance = None
-    CHROMA_PERSIST_DIR = "chroma_db"
-
+    
     def __init__(self):
+        from config import CHROMA_PERSIST_DIR
+        self.CHROMA_PERSIST_DIR = CHROMA_PERSIST_DIR
         try:
             logger.info("Initializing ChromaDB vector store...")
 
@@ -219,13 +220,11 @@ class VectorStore:
             if not search_results:
 
 
-# Define a constant for ChromaDB persistence directory
-CHROMA_PERSIST_DIR = "chroma_db"
-
 def ensure_collection_exists():
     """Utility function to ensure the pdf_documents collection exists"""
     try:
-        logger.info("Ensuring pdf_documents collection exists...")
+        from config import CHROMA_PERSIST_DIR
+        logger.info(f"Ensuring pdf_documents collection exists in {CHROMA_PERSIST_DIR}...")
         client = chromadb.PersistentClient(
             path=CHROMA_PERSIST_DIR,
             settings=chromadb.Settings(
