@@ -1,6 +1,7 @@
 import logging
 from flask import Blueprint, render_template, request, flash, jsonify
 from services.vector_store import VectorStore
+from config import VKB_API_KEY
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('web', __name__)
@@ -25,7 +26,11 @@ def index():
         if error_msg:
             flash(error_msg, "error")
 
-    return render_template('index.html', debug_info=debug_info, query=query, results=results)
+    return render_template('index.html', 
+                         debug_info=debug_info, 
+                         query=query, 
+                         results=results,
+                         api_key=VKB_API_KEY)  # Pass API key to template
 
 @bp.route('/debug-info', methods=['GET'])
 def get_debug_info():
