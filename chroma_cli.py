@@ -42,6 +42,24 @@ def list_collections():
             click.echo("Could not retrieve details for this collection.")
 
 @cli.command()
+@click.argument('collection_name', default="pdf_documents")
+def create_collection(collection_name):
+    """Create a collection if it doesn't exist"""
+    client = get_client()
+    collections = client.list_collections()
+    
+    if collection_name in collections:
+        click.echo(f"\nCollection '{collection_name}' already exists.")
+        return
+    
+    try:
+        # Create the collection without embedding function for CLI purposes
+        client.create_collection(name=collection_name)
+        click.echo(f"\nSuccessfully created collection '{collection_name}'")
+    except Exception as e:
+        click.echo(f"\nError creating collection: {str(e)}")
+
+@cli.command()
 @click.argument('collection_name')
 @click.argument('chunk_id')
 @click.option('--force', '-f', is_flag=True, help='Skip confirmation prompt')
