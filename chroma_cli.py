@@ -9,7 +9,7 @@ import os
 CHROMA_PERSIST_DIR = "chroma_db"
 
 def get_client():
-    """Create ChromaDB client with telemetry disabled and same config as app"""
+    """Create ChromaDB client with exact same config as the main app"""
     return chromadb.PersistentClient(
         path=CHROMA_PERSIST_DIR,
         settings=chromadb.Settings(
