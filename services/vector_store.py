@@ -248,17 +248,37 @@ class VectorStore:
         """Load document metadata from ChromaDB"""
         try:
             logger.info("Loading state from ChromaDB...")
-            all_results = self.collection.get()
+            
+            # First check if the collection has any documents
+            collection_count = self.collection.count()
+            logger.info(f"Collection reports {collection_count} documents")
+            
+            # Try to get all data with explicit empty where clause
+            all_results = self.collection.get(where={})
+            
             if not all_results["ids"]:
                 logger.info("No documents found in ChromaDB")
+                # Log database path for diagnostics
+                logger.info(f"ChromaDB path: {self.CHROMA_PERSIST_DIR}")
+                logger.info(f"ChromaDB directory exists: {os.path.exists(self.CHROMA_PERSIST_DIR)}")
+                if os.path.exists(self.CHROMA_PERSIST_DIR):
+                    logger.info(f"Directory contents: {os.listdir(self.CHROMA_PERSIST_DIR)}")
                 return
 
             logger.info(f"Found {len(all_results['ids'])} entries in ChromaDB")
+            
+            # Log the first few IDs and metadata for debugging
+            logger.info(f"Sample IDs: {all_results['ids'][:3]}")
+            logger.info(f"Sample metadata: {all_results['metadatas'][:3]}")
 
             # Track processed document IDs to avoid duplicates
             processed_doc_ids = set()
 
-            for metadata in all_results["metadatas"]:
+            for i, metadata in enumerate(all_results["metadatas"]):
+                if not metadata or "document_id" not in metadata:
+                    logger.warning(f"Missing document_id in metadata for item {i}")
+                    continue
+                    
                 doc_id = metadata["document_id"]
                 if doc_id not in processed_doc_ids:
                     processed_doc_ids.add(doc_id)
@@ -272,7 +292,10 @@ class VectorStore:
                         )
 
             logger.info(f"Loaded {len(self.documents)} unique documents from ChromaDB")
-            logger.info(f"Document IDs: {list(self.documents.keys())}")
+            if self.documents:
+                logger.info(f"Document IDs: {list(self.documents.keys())}")
+            else:
+                logger.warning("No documents were loaded into memory despite finding entries in ChromaDB")
 
         except Exception as e:
             logger.error(f"Could not load existing vector store state: {str(e)}")

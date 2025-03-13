@@ -9,11 +9,13 @@ import os
 CHROMA_PERSIST_DIR = "chroma_db"
 
 def get_client():
-    """Create ChromaDB client with telemetry disabled"""
+    """Create ChromaDB client with telemetry disabled and same config as app"""
     return chromadb.PersistentClient(
         path=CHROMA_PERSIST_DIR,
         settings=chromadb.Settings(
-            anonymized_telemetry=False
+            anonymized_telemetry=False,
+            allow_reset=True,
+            persist_directory=CHROMA_PERSIST_DIR
         )
     )
 
