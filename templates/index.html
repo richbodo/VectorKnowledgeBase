@@ -82,7 +82,8 @@
                     .then(data => {
                         if (data.success) {
                             alert('File uploaded successfully!\nDocument ID: ' + data.document_id);
-                            location.reload();
+                            // Update debug info instead of full page reload
+                            refreshDebugInfo();
                         } else {
                             alert('Upload failed: ' + (data.error || 'Unknown error'));
                         }
@@ -96,6 +97,18 @@
                     });
 
                     return false;
+                }
+
+                async function refreshDebugInfo() {
+                    try {
+                        const response = await fetch('{{ url_for('monitoring.debug_info') }}');
+                        const debugData = await response.json();
+                        const debugInfoContainer = document.getElementById('debugInfo').querySelector('pre');
+                        debugInfoContainer.textContent = `Document Count: ${debugData.document_count}\nIndex Size: ${debugData.index_size}\n\n${debugData.last_api_error ? `API Error:\n${debugData.last_api_error}` : ''}\n\nDocuments:\n${debugData.documents.map(doc => `- ID: ${doc.id}\n  Filename: ${doc.filename}\n  Size: ${doc.size} bytes\n  Created: ${doc.created_at}`).join('\n')}`;
+                    } catch (error) {
+                        console.error('Error refreshing debug info:', error);
+                        alert('Error refreshing debug information');
+                    }
                 }
                 </script>
 

@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, render_template, request, flash
+from flask import Blueprint, render_template, request, flash, jsonify
 from services.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,13 @@ def index():
             flash(error_msg, "error")
 
     return render_template('index.html', debug_info=debug_info, query=query, results=results)
+
+@bp.route('/debug-info', methods=['GET'])
+def get_debug_info():
+    """Return debug information as JSON for AJAX updates"""
+    vector_store = VectorStore.get_instance()
+    debug_info = vector_store.get_debug_info()
+    return jsonify(debug_info)
 
 def error_handler(error):
     """Custom error handler for web routes"""
