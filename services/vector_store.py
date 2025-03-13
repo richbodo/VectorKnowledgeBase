@@ -63,11 +63,13 @@ class VectorStore:
         try:
             logger.info("Initializing ChromaDB vector store...")
 
-            # Create ChromaDB client with telemetry disabled
+            # Create ChromaDB client with telemetry disabled and increased timeout
             self.client = chromadb.PersistentClient(
                 path=self.CHROMA_PERSIST_DIR,
                 settings=chromadb.Settings(
-                    anonymized_telemetry=False
+                    anonymized_telemetry=False,
+                    allow_reset=True,
+                    persist_directory=self.CHROMA_PERSIST_DIR
                 )
             )
             logger.info("ChromaDB client created successfully")
@@ -89,6 +91,10 @@ class VectorStore:
                 embedding_function=embedding_func,
                 metadata={"hnsw:space": "cosine"}
             )
+            
+            # Verify collection exists and is accessible
+            collection_count = self.collection.count()
+            logger.info(f"Collection initialized with {collection_count} existing documents")
             logger.info("Collection setup complete")
 
             self.documents: Dict[str, Document] = {}
@@ -120,28 +126,48 @@ class VectorStore:
 
             try:
                 # Add chunks to ChromaDB
-                self.collection.add(
-                    ids=chunk_ids,
-                    documents=chunks,
-                    metadatas=[{
-                        "document_id": document.id,
-                        "chunk_index": i,
-                        "total_chunks": len(chunks),
-                        "filename": document.metadata.get("filename", "Unknown"),
-                        "content_type": document.metadata.get("content_type", "Unknown"),
-                        "size": document.metadata.get("size", 0)
-                    } for i in range(len(chunks))]
-                )
+                try:
+                    self.collection.add(
+                        ids=chunk_ids,
+                        documents=chunks,
+                        metadatas=[{
+                            "document_id": document.id,
+                            "chunk_index": i,
+                            "total_chunks": len(chunks),
+                            "filename": document.metadata.get("filename", "Unknown"),
+                            "content_type": document.metadata.get("content_type", "Unknown"),
+                            "size": document.metadata.get("size", 0)
+                        } for i in range(len(chunks))]
+                    )
+                    
+                    # Force persistence to disk
+                    self.client.persist()
+                    
+                    # Immediately update in-memory state with the new document
+                    self.documents[document.id] = document
+                    logger.info(f"Added document {document.id} with {len(chunks)} chunks")
+                    logger.info(f"Current document count: {len(self.documents)}")
 
-                # Immediately update in-memory state with the new document
-                self.documents[document.id] = document
-                logger.info(f"Added document {document.id} with {len(chunks)} chunks")
-                logger.info(f"Current document count: {len(self.documents)}")
-
-                # Verify document was added to ChromaDB
-                chroma_count = self.collection.count()
-                logger.info(f"ChromaDB collection count: {chroma_count}")
-                return True, None
+                    # Verify document was added to ChromaDB
+                    chroma_count = self.collection.count()
+                    logger.info(f"ChromaDB collection count: {chroma_count}")
+                    
+                    # Additional verification
+                    verify_results = self.collection.get(
+                        where={"document_id": document.id},
+                        limit=1
+                    )
+                    if verify_results["ids"]:
+                        logger.info(f"Verified document {document.id} was properly added to ChromaDB")
+                    else:
+                        logger.warning(f"Document {document.id} may not have been properly added to ChromaDB")
+                        
+                    return True, None
+                except Exception as add_error:
+                    error_msg = f"ChromaDB add operation failed: {str(add_error)}"
+                    logger.error(error_msg)
+                    logger.error("Full error details:", exc_info=True)
+                    return False, error_msg
 
             except Exception as e:
                 error_msg = f"Error adding document to vector store: {str(e)}"

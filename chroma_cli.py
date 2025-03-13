@@ -40,8 +40,86 @@ def list_collections():
             collection = client.get_collection(name=coll_name)
             count = collection.count()
             click.echo(f"Number of documents: {count}")
+            
+            # Additional diagnostic information
+            if count == 0:
+                click.echo("No documents found in collection.")
+            else:
+                # Get all documents to see what's there
+                all_results = collection.get()
+                if all_results and all_results["ids"]:
+                    unique_doc_ids = set()
+                    for metadata in all_results["metadatas"]:
+                        if metadata and "document_id" in metadata:
+                            unique_doc_ids.add(metadata["document_id"])
+                    
+                    click.echo(f"Number of unique document IDs: {len(unique_doc_ids)}")
+                    click.echo(f"Number of chunks: {len(all_results['ids'])}")
+                    
+                    # Display first few document IDs
+                    if unique_doc_ids:
+                        click.echo("\nSample document IDs:")
+                        for i, doc_id in enumerate(list(unique_doc_ids)[:3]):
+                            click.echo(f"  {i+1}. {doc_id}")
         except Exception as e:
-            click.echo("Could not retrieve details for this collection.")
+            click.echo(f"Could not retrieve details for this collection: {str(e)}")
+
+@cli.command()
+def diagnose_db():
+    """Run diagnostics on the ChromaDB database"""
+    client = get_client()
+    
+    click.echo("\nChromaDB Diagnostics:")
+    click.echo("====================")
+    
+    try:
+        collections = client.list_collections()
+        click.echo(f"Found {len(collections)} collections")
+        
+        if not collections:
+            click.echo("No collections found. Database may be empty or corrupted.")
+            return
+            
+        for coll_name in collections:
+            click.echo(f"\nExamining collection: {coll_name}")
+            try:
+                collection = client.get_collection(name=coll_name)
+                count = collection.count()
+                click.echo(f"Document count: {count}")
+                
+                if count > 0:
+                    # Try to retrieve some data
+                    sample = collection.get(limit=1)
+                    click.echo("✅ Successfully retrieved sample data")
+                    click.echo(f"Sample ID: {sample['ids'][0] if sample['ids'] else 'None'}")
+                else:
+                    click.echo("⚠️ Collection exists but contains no documents")
+                    
+                # Test query functionality
+                try:
+                    query_result = collection.query(query_texts=["test query"], n_results=1)
+                    click.echo("✅ Query functionality working")
+                except Exception as qe:
+                    click.echo(f"❌ Query functionality error: {str(qe)}")
+                    
+            except Exception as e:
+                click.echo(f"❌ Error accessing collection: {str(e)}")
+                
+        # Check database files
+        db_path = CHROMA_PERSIST_DIR
+        if os.path.exists(db_path):
+            files = os.listdir(db_path)
+            click.echo(f"\nDatabase directory contains {len(files)} items")
+            sqlite_files = [f for f in files if f.endswith('.sqlite3')]
+            if sqlite_files:
+                click.echo(f"✅ Found SQLite database files: {', '.join(sqlite_files)}")
+            else:
+                click.echo("❌ No SQLite database files found")
+        else:
+            click.echo(f"❌ Database directory not found at {db_path}")
+            
+    except Exception as e:
+        click.echo(f"❌ Diagnostic error: {str(e)}")
 
 @cli.command()
 @click.argument('collection_name')
