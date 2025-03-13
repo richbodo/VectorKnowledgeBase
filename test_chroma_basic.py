@@ -4,6 +4,8 @@ import uuid
 import logging
 import sys
 import os
+from services.embedding_service import EmbeddingService
+from chromadb.utils.embedding_functions import EmbeddingFunction
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO, 
@@ -14,14 +16,26 @@ logger = logging.getLogger("chroma-test")
 # Use the same ChromaDB directory as the main application
 CHROMA_PERSIST_DIR = "chroma_db"
 
+# Define the same CustomEmbeddingFunction as in your VectorStore
+class CustomEmbeddingFunction(EmbeddingFunction):
+    def __init__(self, embedding_service: EmbeddingService):
+        self.embedding_service = embedding_service
+
+    def __call__(self, texts):
+        embeddings = [self.embedding_service.generate_embedding(text) for text in texts]
+        return embeddings
+
 def test_basic_chroma_operations():
     """Basic test for ChromaDB - insert and retrieve a simple document"""
     
     logger.info(f"Testing with ChromaDB version: {chromadb.__version__}")
     logger.info(f"Database directory: {CHROMA_PERSIST_DIR}")
     logger.info(f"Directory exists: {os.path.exists(CHROMA_PERSIST_DIR)}")
-    logger.info(f"ChromaDB version: {chromadb.__version__}")
     
+    # Initialize embedding service and embedding function
+    embedding_service = EmbeddingService()
+    embedding_func = CustomEmbeddingFunction(embedding_service)
+
     # Create client with the same configuration as the application
     client = chromadb.PersistentClient(
         path=CHROMA_PERSIST_DIR,
@@ -32,17 +46,18 @@ def test_basic_chroma_operations():
         )
     )
 
-    # Access the collection (create if doesn't exist)
+    # Access the collection (create if doesn't exist) with embedding function
     collection = client.get_or_create_collection(
         name="pdf_documents",
-        metadata={"description": "Simple test collection"}
+        embedding_function=embedding_func,
+        metadata={"hnsw:space": "cosine"}
     )
     
     # Generate a test document with a unique ID
     test_doc_id = f"test-doc-{uuid.uuid4()}"
     test_content = "This is a simple test document for ChromaDB verification."
     
-    # Embed the document (no actual embedding model needed for this test)
+    # Add the document (embedding will be generated automatically)
     logger.info(f"Adding document with ID: {test_doc_id}")
     collection.add(
         ids=[test_doc_id],
@@ -92,6 +107,9 @@ def test_basic_chroma_operations():
         coll = client.get_collection(collection_name)
         count = coll.count()
         logger.info(f"Collection '{collection_name}' has {count} documents")
+    
+    # Delete the collection
+    client.delete_collection("pdf_documents")
     
     return True
 
