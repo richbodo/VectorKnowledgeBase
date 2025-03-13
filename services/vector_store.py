@@ -140,8 +140,8 @@ class VectorStore:
                         } for i in range(len(chunks))]
                     )
                     
-                    # Force persistence to disk
-                    self.client.persist()
+                    # ChromaDB PersistentClient automatically persists data to disk,
+                    # no need to explicitly call persist() in newer versions
                     
                     # Immediately update in-memory state with the new document
                     self.documents[document.id] = document
