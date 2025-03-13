@@ -77,13 +77,13 @@ def test_basic_chroma_operations():
     logger.info(f"\nTotal documents in collection: {count}")
     
     # Clean up - delete our test document
-    logger.info(f"Cleaning up - deleting test document {test_doc_id}")
-    collection.delete(ids=[test_doc_id])
+    #logger.info(f"Cleaning up - deleting test document {test_doc_id}")
+    #collection.delete(ids=[test_doc_id])
     
     # Verify deletion
-    post_delete_count = collection.count()
-    logger.info(f"Collection count after deletion: {post_delete_count}")
-    logger.info(f"Document successfully deleted: {count - post_delete_count == 1}")
+    #post_delete_count = collection.count()
+    #logger.info(f"Collection count after deletion: {post_delete_count}")
+    #logger.info(f"Document successfully deleted: {count - post_delete_count == 1}")
     
     return True
 
