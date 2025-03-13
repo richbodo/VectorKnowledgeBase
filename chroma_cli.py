@@ -3,9 +3,7 @@ import click
 import chromadb
 import json
 import sys
-
-# Use the same ChromaDB directory as the main application
-CHROMA_PERSIST_DIR = "chroma_db"
+from config import CHROMA_PERSIST_DIR
 
 def get_client():
     """Create ChromaDB client with telemetry disabled"""
@@ -168,17 +166,25 @@ def nuke_db(collection_name):
 
         # First confirmation
         click.echo("\nTo proceed, type 'NUKE' (or anything else to cancel):")
-        confirm1 = input().strip()
-        if confirm1 != "NUKE":
-            click.echo("Operation cancelled.")
-            return
+        try:
+            confirm1 = input().strip()
+            if confirm1 != "NUKE":
+                click.echo("Operation cancelled.")
+                sys.exit(0)
+        except (EOFError, KeyboardInterrupt):
+            click.echo("\nOperation cancelled - interactive input required.")
+            sys.exit(1)
 
         # Second confirmation
         click.echo("\nFor final confirmation, type 'DATABASE' (or anything else to cancel):")
-        confirm2 = input().strip()
-        if confirm2 != "DATABASE":
-            click.echo("Operation cancelled.")
-            return
+        try:
+            confirm2 = input().strip()
+            if confirm2 != "DATABASE":
+                click.echo("Operation cancelled.")
+                sys.exit(0)
+        except (EOFError, KeyboardInterrupt):
+            click.echo("\nOperation cancelled - interactive input required.")
+            sys.exit(1)
 
         # Final deletion
         click.echo("\nProceeding with database deletion...")
