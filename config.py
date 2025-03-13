@@ -26,14 +26,9 @@ if not VKB_API_KEY:
         raise ValueError("VKB_API_KEY environment variable is not set")
 
 # ChromaDB Configuration
-if IS_DEPLOYMENT:
-    CHROMA_PERSIST_DIR = os.environ.get("CHROMA_PERSIST_DIR", "chroma_db_prod")
-    import logging
-    logging.info(f"Using production ChromaDB directory: {CHROMA_PERSIST_DIR}")
-else:
-    CHROMA_PERSIST_DIR = os.environ.get("CHROMA_PERSIST_DIR", "chroma_db_dev")
-    import logging
-    logging.info(f"Using development ChromaDB directory: {CHROMA_PERSIST_DIR}")
+CHROMA_PERSIST_DIR = os.environ.get("CHROMA_PERSIST_DIR", "chroma_db")
+import logging
+logging.info(f"Using ChromaDB directory: {CHROMA_PERSIST_DIR}")
 
 # API Configuration
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB in bytes

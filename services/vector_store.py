@@ -85,20 +85,25 @@ class VectorStore:
 
             # Check if collection exists and create it if not
             collection_name = "pdf_documents"
-            existing_collections = self.client.list_collections()
+            existing_collections = [c.name for c in self.client.list_collections()]
             collection_exists = collection_name in existing_collections
             
             if not collection_exists:
                 logger.info(f"Collection '{collection_name}' not found, creating it...")
+                # Create the collection explicitly
+                self.collection = self.client.create_collection(
+                    name=collection_name,
+                    embedding_function=embedding_func,
+                    metadata={"hnsw:space": "cosine"}
+                )
+                logger.info(f"Created collection '{collection_name}'")
             else:
-                logger.info(f"Collection '{collection_name}' found")
-                
-            # Always use get_or_create to ensure the collection exists
-            self.collection = self.client.get_or_create_collection(
-                name=collection_name,
-                embedding_function=embedding_func,
-                metadata={"hnsw:space": "cosine"}
-            )
+                logger.info(f"Collection '{collection_name}' found, getting it")
+                # Get the existing collection
+                self.collection = self.client.get_collection(
+                    name=collection_name,
+                    embedding_function=embedding_func
+                )
             logger.info(f"Collection '{collection_name}' setup complete")
 
             self.documents: Dict[str, Document] = {}
@@ -233,7 +238,7 @@ def ensure_collection_exists():
         )
         
         collection_name = "pdf_documents"
-        existing_collections = client.list_collections()
+        existing_collections = [c.name for c in client.list_collections()]
         
         if collection_name not in existing_collections:
             logger.info(f"Collection '{collection_name}' not found, creating it...")
@@ -241,10 +246,10 @@ def ensure_collection_exists():
             # The full VectorStore will initialize properly later
             client.create_collection(name=collection_name)
             logger.info(f"Created collection '{collection_name}'")
-            return True
         else:
             logger.info(f"Collection '{collection_name}' already exists")
-            return True
+            
+        return True
     except Exception as e:
         logger.error(f"Error ensuring collection exists: {str(e)}")
         logger.error("Full error details:", exc_info=True)
