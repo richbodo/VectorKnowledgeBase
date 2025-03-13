@@ -34,10 +34,6 @@ def create_app():
     logger.info("=== Starting Flask PDF Processing Application ===")
     logger.info("Debug logs will be written to 'app.log' in the project root directory")
 
-    # Ensure collection exists at startup
-    from services.vector_store import ensure_collection_exists
-    ensure_collection_exists()
-    
     app = Flask(__name__)
     
     # Detect deployment mode
@@ -93,19 +89,7 @@ def create_app():
                     return
 
                 logger.info("Starting vector store initialization...")
-                
-                # Initialize the vector store and ensure collections exist
-                vector_store = init_vector_store()
-                
-                # Verify the collection was created
-                if vector_store:
-                    collection_name = "pdf_documents"
-                    existing_collections = vector_store.client.list_collections()
-                    if collection_name in existing_collections:
-                        logger.info(f"Verified collection '{collection_name}' exists")
-                    else:
-                        logger.warning(f"Collection '{collection_name}' still not found after initialization!")
-                
+                init_vector_store()
                 logger.info("Vector store initialized successfully")
                 app._vector_store_initialized = True
             except Exception as e:
