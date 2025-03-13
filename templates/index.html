@@ -101,10 +101,10 @@
 
                 async function refreshDebugInfo() {
                     try {
-                        const response = await fetch('{{ url_for('monitoring.debug_info') }}');
+                        const response = await fetch('{{ url_for('web.get_debug_info') }}');
                         const debugData = await response.json();
                         const debugInfoContainer = document.getElementById('debugInfo').querySelector('pre');
-                        debugInfoContainer.textContent = `Document Count: ${debugData.document_count}\nIndex Size: ${debugData.index_size}\n\n${debugData.last_api_error ? `API Error:\n${debugData.last_api_error}` : ''}\n\nDocuments:\n${debugData.documents.map(doc => `- ID: ${doc.id}\n  Filename: ${doc.filename}\n  Size: ${doc.size} bytes\n  Created: ${doc.created_at}`).join('\n')}`;
+                        debugInfoContainer.textContent = `Document Count: ${debugData.document_count}\nIndex Size: ${debugData.index_size || "N/A"}\n\n${debugData.last_api_error ? `API Error:\n${debugData.last_api_error}` : ''}\n\nDocuments:\n${debugData.documents.map(doc => `- ID: ${doc.id}\n  Filename: ${doc.filename}\n  Size: ${doc.size} bytes\n  Created: ${doc.created_at}`).join('\n')}`;
                     } catch (error) {
                         console.error('Error refreshing debug info:', error);
                         alert('Error refreshing debug information');
@@ -207,7 +207,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h2 class="h5 mb-0">Debug Information</h2>
                 <div>
-                    <a href="{{ url_for('monitoring.test_openai_connection') }}" class="btn btn-sm btn-info me-2" target="_blank">
+                    <a href="{{ url_for('monitoring.health_check') }}" class="btn btn-sm btn-info me-2" target="_blank">
                         Test OpenAI Connection
                     </a>
                     <button class="btn btn-sm btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#debugInfo">

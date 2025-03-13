@@ -1,38 +1,41 @@
 import logging
 import os
-import traceback
-from flask import Blueprint, render_template, jsonify
-from services.vector_store import VectorStore
-from services.embedding_service import EmbeddingService
+from flask import Blueprint, jsonify
+import openai
 
 logger = logging.getLogger(__name__)
-bp = Blueprint('monitoring', __name__, url_prefix='/web/monitoring')
+
+bp = Blueprint('monitoring', __name__, url_prefix='/monitoring')
 
 @bp.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint with resource monitoring"""
+    """Health check endpoint that tests the OpenAI API connection."""
     try:
-        import psutil
-        process = psutil.Process(os.getpid())
-        memory_info = process.memory_info()
+        # Check if OpenAI API key is set
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            return jsonify({
+                "status": "warning",
+                "message": "OPENAI_API_KEY environment variable is not set."
+            }), 200
 
-        health_data = {
-            'status': 'healthy',
-            'memory': {
-                'rss': f"{memory_info.rss / 1024 / 1024:.2f}MB",
-                'vms': f"{memory_info.vms / 1024 / 1024:.2f}MB",
-            },
-            'cpu_percent': process.cpu_percent(),
-            'worker_pid': os.getpid(),
-            'vector_store': {
-                'document_count': len(VectorStore.get_instance().documents),
-                'index_size': VectorStore.get_instance().collection.count()
-            }
-        }
-        return render_template('monitoring/health.html', health_data=health_data)
+        # Test API key validity by accessing a simple endpoint
+        client = openai.OpenAI(api_key=api_key)
+        models = client.models.list(limit=1)
+
+        # If we get here, the connection is working
+        return jsonify({
+            "status": "ok",
+            "message": "Successfully connected to OpenAI API",
+            "models_accessible": True
+        }), 200
+
     except Exception as e:
-        logger.error(f"Health check failed: {str(e)}", exc_info=True)
-        return render_template('error.html', error="Health check failed"), 500
+        logger.error(f"OpenAI API connection test failed: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to connect to OpenAI API: {str(e)}"
+        }), 500
 
 @bp.route('/test-openai', methods=['GET'])
 def test_openai_connection():
