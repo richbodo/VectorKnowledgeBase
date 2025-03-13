@@ -85,7 +85,7 @@ class VectorStore:
             # Check if collection exists and create it if not
             collection_name = "pdf_documents"
             existing_collections = self.client.list_collections()
-            collection_exists = any(c.name == collection_name for c in existing_collections)
+            collection_exists = collection_name in existing_collections
             
             if not collection_exists:
                 logger.info(f"Collection '{collection_name}' not found, creating it...")

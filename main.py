@@ -97,7 +97,7 @@ def create_app():
                 if vector_store:
                     collection_name = "pdf_documents"
                     existing_collections = vector_store.client.list_collections()
-                    if any(c.name == collection_name for c in existing_collections):
+                    if collection_name in existing_collections:
                         logger.info(f"Verified collection '{collection_name}' exists")
                     else:
                         logger.warning(f"Collection '{collection_name}' still not found after initialization!")
