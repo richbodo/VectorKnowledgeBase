@@ -13,7 +13,7 @@ if not OPENAI_API_KEY:
     else:
         raise ValueError("OPENAI_API_KEY environment variable is not set")
 
-EMBEDDING_MODEL = "text-embedding-3-small"  
+EMBEDDING_MODEL = "text-embedding-ada-002"  # Using older model to match existing database dimensions  
 
 # API Configuration
 VKB_API_KEY = os.environ.get("VKB_API_KEY")
