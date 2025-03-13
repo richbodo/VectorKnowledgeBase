@@ -29,7 +29,7 @@ def timeout(seconds):
         signal.alarm(0)
 
 class PDFProcessor:
-    MAX_MEMORY_PER_PAGE = 200 * 1024 * 1024  # 200MB per page limit
+    MAX_MEMORY_PER_PAGE = 2000 * 1024 * 1024  # 2GB per page limit
     PAGE_TIMEOUT = 30  # 30 seconds timeout per page
 
     @staticmethod
@@ -79,11 +79,12 @@ class PDFProcessor:
 
                 # Check memory limit before processing page
                 rss, _ = PDFProcessor.check_memory()
-                if rss > PDFProcessor.MAX_MEMORY_PER_PAGE:
+                base_memory = 250 * 1024 * 1024  # 250MB allowance for base application
+                if rss > (PDFProcessor.MAX_MEMORY_PER_PAGE + base_memory):
                     logger.warning(f"Memory usage too high before processing page {page_num + 1}")
                     PDFProcessor.force_garbage_collection()
                     rss, _ = PDFProcessor.check_memory()
-                    if rss > PDFProcessor.MAX_MEMORY_PER_PAGE:
+                    if rss > (PDFProcessor.MAX_MEMORY_PER_PAGE + base_memory):
                         error_msg = f"Memory limit exceeded ({rss / 1024 / 1024:.2f}MB)"
                         logger.error(error_msg)
                         return None, error_msg
