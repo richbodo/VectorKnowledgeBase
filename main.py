@@ -89,7 +89,19 @@ def create_app():
                     return
 
                 logger.info("Starting vector store initialization...")
-                init_vector_store()
+                
+                # Initialize the vector store and ensure collections exist
+                vector_store = init_vector_store()
+                
+                # Verify the collection was created
+                if vector_store:
+                    collection_name = "pdf_documents"
+                    existing_collections = vector_store.client.list_collections()
+                    if any(c.name == collection_name for c in existing_collections):
+                        logger.info(f"Verified collection '{collection_name}' exists")
+                    else:
+                        logger.warning(f"Collection '{collection_name}' still not found after initialization!")
+                
                 logger.info("Vector store initialized successfully")
                 app._vector_store_initialized = True
             except Exception as e:

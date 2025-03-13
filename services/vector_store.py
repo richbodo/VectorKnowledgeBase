@@ -82,14 +82,23 @@ class VectorStore:
             embedding_func = CustomEmbeddingFunction(self.embedding_service)
             logger.info("Custom embedding function created successfully")
 
-            # Use the custom embedding function
-            logger.info("Creating/getting collection...")
+            # Check if collection exists and create it if not
+            collection_name = "pdf_documents"
+            existing_collections = self.client.list_collections()
+            collection_exists = any(c.name == collection_name for c in existing_collections)
+            
+            if not collection_exists:
+                logger.info(f"Collection '{collection_name}' not found, creating it...")
+            else:
+                logger.info(f"Collection '{collection_name}' found")
+                
+            # Always use get_or_create to ensure the collection exists
             self.collection = self.client.get_or_create_collection(
-                name="pdf_documents",
+                name=collection_name,
                 embedding_function=embedding_func,
                 metadata={"hnsw:space": "cosine"}
             )
-            logger.info("Collection setup complete")
+            logger.info(f"Collection '{collection_name}' setup complete")
 
             self.documents: Dict[str, Document] = {}
             self._load_state()
