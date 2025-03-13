@@ -79,12 +79,9 @@ def create_app():
     def initialize_vector_store():
         if not hasattr(app, '_vector_store_initialized'):
             try:
-                # Check if we're in deployment with missing API keys
-                if os.environ.get("REPL_DEPLOYMENT") and (
-                    not os.environ.get("OPENAI_API_KEY") or 
-                    not os.environ.get("VKB_API_KEY")
-                ):
-                    logger.warning("Deployment mode with missing API keys - skipping vector store")
+                # Only check for OpenAI key as it's essential
+                if not os.environ.get("OPENAI_API_KEY"):
+                    logger.error("Missing OPENAI_API_KEY")
                     app._vector_store_initialized = False
                     return
 
@@ -95,11 +92,7 @@ def create_app():
             except Exception as e:
                 logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
                 app._vector_store_initialized = False
-                # Individual endpoints will handle vector store failures
-                if os.environ.get("REPL_DEPLOYMENT"):
-                    logger.warning("Deployment mode - continuing without vector store")
-                    return
-                raise  # Re-raise in development mode
+                raise  # Always raise in both dev and deployment
 
     # Register blueprints
     logger.info("Registering blueprints...")

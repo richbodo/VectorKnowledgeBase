@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import chromadb
 import uuid
@@ -21,6 +20,7 @@ def test_basic_chroma_operations():
     logger.info(f"Testing with ChromaDB version: {chromadb.__version__}")
     logger.info(f"Database directory: {CHROMA_PERSIST_DIR}")
     logger.info(f"Directory exists: {os.path.exists(CHROMA_PERSIST_DIR)}")
+    logger.info(f"ChromaDB version: {chromadb.__version__}")
     
     # Create client with the same configuration as the application
     client = chromadb.PersistentClient(
@@ -31,10 +31,10 @@ def test_basic_chroma_operations():
             persist_directory=CHROMA_PERSIST_DIR
         )
     )
-    
+
     # Access the collection (create if doesn't exist)
     collection = client.get_or_create_collection(
-        name="test_collection",
+        name="pdf_documents",
         metadata={"description": "Simple test collection"}
     )
     
@@ -84,6 +84,14 @@ def test_basic_chroma_operations():
     #post_delete_count = collection.count()
     #logger.info(f"Collection count after deletion: {post_delete_count}")
     #logger.info(f"Document successfully deleted: {count - post_delete_count == 1}")
+    
+    # Add this to your test script
+    collections = client.list_collections()
+    logger.info(f"Available collections: {collections}")
+    for collection_name in collections:
+        coll = client.get_collection(collection_name)
+        count = coll.count()
+        logger.info(f"Collection '{collection_name}' has {count} documents")
     
     return True
 
