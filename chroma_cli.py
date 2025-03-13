@@ -166,6 +166,71 @@ def delete_chunk(collection_name, chunk_id, force):
 
 @cli.command()
 @click.argument('collection_name')
+@click.option('--document-id', '-d', help='Filter chunks by document ID')
+@click.option('--limit', '-l', type=int, default=10, help='Maximum number of chunks to show')
+@click.option('--show-content/--no-content', default=False, help='Display chunk content')
+def list_chunks(collection_name, document_id, limit, show_content):
+    """List chunks in a collection with filtering options"""
+    client = get_client()
+    try:
+        collection = client.get_collection(name=collection_name)
+        
+        # Get all chunks, with optional filtering
+        if document_id:
+            all_chunks = collection.get(
+                where={"document_id": document_id},
+                limit=limit
+            )
+            click.echo(f"\nChunks for document '{document_id}' in collection '{collection_name}':")
+        else:
+            all_chunks = collection.get(limit=limit)
+            click.echo(f"\nListing chunks in collection '{collection_name}' (limit: {limit}):")
+        
+        # Display chunk information
+        click.echo("=================================")
+        if not all_chunks['ids']:
+            click.echo("No chunks found with the current filters.")
+            return
+            
+        click.echo(f"Found {len(all_chunks['ids'])} chunks")
+        
+        for i, (chunk_id, metadata, document) in enumerate(zip(
+            all_chunks['ids'], 
+            all_chunks['metadatas'], 
+            all_chunks['documents']
+        )):
+            click.echo(f"\nChunk #{i+1}: {chunk_id}")
+            
+            # Display metadata
+            if metadata:
+                click.echo("Metadata:")
+                doc_id = metadata.get('document_id', 'Unknown')
+                filename = metadata.get('filename', 'Unknown')
+                chunk_index = metadata.get('chunk_index', 'Unknown')
+                total_chunks = metadata.get('total_chunks', 'Unknown')
+                
+                click.echo(f"  Document ID: {doc_id}")
+                click.echo(f"  Filename: {filename}")
+                click.echo(f"  Chunk: {chunk_index+1}/{total_chunks}" 
+                          if isinstance(chunk_index, int) else f"  Chunk index: {chunk_index}")
+                
+                # Display other metadata
+                for key, value in metadata.items():
+                    if key not in ['document_id', 'filename', 'chunk_index', 'total_chunks']:
+                        click.echo(f"  {key}: {value}")
+            
+            # Display content if requested
+            if show_content and document:
+                click.echo("Content Preview:")
+                content_preview = document[:200] + "..." if len(document) > 200 else document
+                click.echo(f"  {content_preview}")
+                
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+        sys.exit(1)
+
+@cli.command()
+@click.argument('collection_name')
 @click.argument('document_id')
 @click.option('--force', '-f', is_flag=True, help='Skip confirmation prompt')
 def delete_pdf(collection_name, document_id, force):
