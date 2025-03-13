@@ -219,6 +219,9 @@ class VectorStore:
             if not search_results:
 
 
+# Define a constant for ChromaDB persistence directory
+CHROMA_PERSIST_DIR = "chroma_db"
+
 def ensure_collection_exists():
     """Utility function to ensure the pdf_documents collection exists"""
     try:
