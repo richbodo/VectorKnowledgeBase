@@ -45,71 +45,149 @@ def list_collections():
 
 @cli.command()
 @click.argument('collection_name')
-@click.option('--limit', '-n', default=10, help='Number of documents to show')
-def list_documents(collection_name, limit):
-    """List documents in a collection"""
-    client = get_client()
-    try:
-        collection = client.get_collection(name=collection_name)
-        results = collection.get(limit=limit)
-
-        click.echo(f"\nDocuments in collection '{collection_name}':")
-        click.echo("=" * (len(collection_name) + 24))
-
-        if not results['ids']:
-            click.echo("No documents found.")
-            return
-
-        for i, (doc_id, metadata) in enumerate(zip(results['ids'], results['metadatas'])):
-            click.echo(f"\n{i+1}. Document ID: {doc_id}")
-            if metadata:
-                click.echo(f"   Metadata: {json.dumps(metadata, indent=2)}")
-
-        total_docs = collection.count()
-        if total_docs > limit:
-            click.echo(f"\nShowing {limit} of {total_docs} documents. Use --limit option to show more.")
-
-    except Exception as e:
-        click.echo(f"Error: Collection '{collection_name}' not found or error accessing it: {str(e)}")
-
-@cli.command()
-@click.argument('collection_name')
-@click.argument('document_id')
+@click.argument('chunk_id')
 @click.option('--force', '-f', is_flag=True, help='Skip confirmation prompt')
-def delete_document(collection_name, document_id, force):
-    """Delete a specific document from a collection"""
+def delete_chunk(collection_name, chunk_id, force):
+    """Delete a specific chunk from a collection"""
     client = get_client()
     try:
         collection = client.get_collection(name=collection_name)
 
-        # Get document details before deletion
-        results = collection.get(ids=[document_id])
+        # Get chunk details before deletion
+        results = collection.get(ids=[chunk_id])
 
         if not results['ids']:
-            click.echo(f"Error: Document '{document_id}' not found in collection '{collection_name}'")
-            return
+            click.echo(f"Error: Chunk '{chunk_id}' not found in collection '{collection_name}'")
+            sys.exit(1)
 
-        # Display document details
-        click.echo("\nDocument to delete:")
+        # Display chunk details
+        click.echo("\nChunk to delete:")
         click.echo("==================")
-        click.echo(f"ID: {document_id}")
+        click.echo(f"ID: {chunk_id}")
         if results['metadatas'][0]:
             click.echo("Metadata:")
             click.echo(json.dumps(results['metadatas'][0], indent=2))
 
         # If force flag is set or user confirms, proceed with deletion
-        if force or click.confirm("\nAre you sure you want to delete this document?", default=False):
+        prompt = "\nAre you sure you want to delete this chunk? This action cannot be undone."
+        if force or click.confirm(prompt, abort=True):
             try:
-                collection.delete(ids=[document_id])
-                click.echo(f"\nSuccessfully deleted document '{document_id}' from collection '{collection_name}'")
+                collection.delete(ids=[chunk_id])
+                click.echo(f"\nSuccessfully deleted chunk '{chunk_id}' from collection '{collection_name}'")
             except Exception as e:
-                click.echo(f"\nError deleting document: {str(e)}")
+                click.echo(f"\nError deleting chunk: {str(e)}")
                 sys.exit(1)
-        else:
-            click.echo("\nDeletion cancelled.")
 
+    except click.Abort:
+        click.echo("\nDeletion cancelled.")
+        sys.exit(0)
     except Exception as e:
         click.echo(f"Error: {str(e)}")
+        sys.exit(1)
+
+@cli.command()
+@click.argument('collection_name')
+@click.argument('document_id')
+@click.option('--force', '-f', is_flag=True, help='Skip confirmation prompt')
+def delete_pdf(collection_name, document_id, force):
+    """Delete all chunks of a PDF document"""
+    client = get_client()
+    try:
+        collection = client.get_collection(name=collection_name)
+
+        # Get all documents to search for chunks
+        all_docs = collection.get()
+        chunk_ids = []
+        pdf_metadata = None
+
+        # Find all chunks belonging to this PDF
+        for chunk_id, metadata in zip(all_docs['ids'], all_docs['metadatas']):
+            if metadata.get('document_id') == document_id:
+                chunk_ids.append(chunk_id)
+                if not pdf_metadata:  # Store metadata from first chunk for display
+                    pdf_metadata = metadata
+
+        if not chunk_ids:
+            click.echo(f"Error: No chunks found for PDF document '{document_id}'")
+            sys.exit(1)
+
+        # Display PDF details
+        click.echo("\nPDF document to delete:")
+        click.echo("=====================")
+        click.echo(f"Document ID: {document_id}")
+        click.echo(f"Filename: {pdf_metadata.get('filename', 'Unknown')}")
+        click.echo(f"Total chunks: {len(chunk_ids)}")
+        if pdf_metadata:
+            click.echo("Metadata:")
+            click.echo(json.dumps(pdf_metadata, indent=2))
+
+        # If force flag is set or user confirms, proceed with deletion
+        prompt = f"\nAre you sure you want to delete all {len(chunk_ids)} chunks of this PDF? This action cannot be undone."
+        if force or click.confirm(prompt, abort=True):
+            try:
+                collection.delete(ids=chunk_ids)
+                click.echo(f"\nSuccessfully deleted all chunks of PDF '{document_id}'")
+                click.echo(f"Chunks deleted: {len(chunk_ids)}")
+            except Exception as e:
+                click.echo(f"\nError deleting PDF chunks: {str(e)}")
+                sys.exit(1)
+
+    except click.Abort:
+        click.echo("\nDeletion cancelled.")
+        sys.exit(0)
+    except Exception as e:
+        click.echo(f"Error: {str(e)}")
+        sys.exit(1)
+
+@cli.command()
+@click.argument('collection_name')
+def nuke_db(collection_name):
+    """⚠️ DANGER: Delete ALL documents and chunks from the database."""
+    client = get_client()
+    try:
+        collection = client.get_collection(name=collection_name)
+
+        # Get all documents before deletion
+        all_docs = collection.get()
+        if not all_docs['ids']:
+            click.echo("No documents found in the database.")
+            return
+
+        # Count unique PDFs
+        pdf_ids = set()
+        for metadata in all_docs['metadatas']:
+            if metadata and 'document_id' in metadata:
+                pdf_ids.add(metadata['document_id'])
+
+        # Display what will be deleted
+        click.echo("\n⚠️  WARNING: You are about to delete:")
+        click.echo("================================")
+        click.echo(f"Total PDFs: {len(pdf_ids)}")
+        click.echo(f"Total chunks: {len(all_docs['ids'])}")
+        click.echo("\nThis action CANNOT be undone!")
+
+        # First confirmation
+        click.echo("\nTo proceed, type 'NUKE' (or anything else to cancel):")
+        confirm1 = input().strip()
+        if confirm1 != "NUKE":
+            click.echo("Operation cancelled.")
+            return
+
+        # Second confirmation
+        click.echo("\nFor final confirmation, type 'DATABASE' (or anything else to cancel):")
+        confirm2 = input().strip()
+        if confirm2 != "DATABASE":
+            click.echo("Operation cancelled.")
+            return
+
+        # Final deletion
+        click.echo("\nProceeding with database deletion...")
+        collection.delete(ids=all_docs['ids'])
+        click.echo("\n✅ Database successfully nuked!")
+        click.echo(f"Deleted {len(pdf_ids)} PDFs ({len(all_docs['ids'])} chunks)")
+
+    except Exception as e:
+        click.echo(f"\n❌ Error nuking database: {str(e)}")
         sys.exit(1)
 
 if __name__ == '__main__':
