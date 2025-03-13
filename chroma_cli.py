@@ -3,7 +3,9 @@ import click
 import chromadb
 import json
 import sys
-from config import CHROMA_PERSIST_DIR
+
+# Use the same ChromaDB directory as the main application
+CHROMA_PERSIST_DIR = "chroma_db"
 
 def get_client():
     """Create ChromaDB client with telemetry disabled"""
@@ -40,24 +42,6 @@ def list_collections():
             click.echo(f"Number of documents: {count}")
         except Exception as e:
             click.echo("Could not retrieve details for this collection.")
-
-@cli.command()
-@click.argument('collection_name', default="pdf_documents")
-def create_collection(collection_name):
-    """Create a collection if it doesn't exist"""
-    client = get_client()
-    collections = client.list_collections()
-    
-    if collection_name in collections:
-        click.echo(f"\nCollection '{collection_name}' already exists.")
-        return
-    
-    try:
-        # Create the collection without embedding function for CLI purposes
-        client.create_collection(name=collection_name)
-        click.echo(f"\nSuccessfully created collection '{collection_name}'")
-    except Exception as e:
-        click.echo(f"\nError creating collection: {str(e)}")
 
 @cli.command()
 @click.argument('collection_name')
@@ -184,25 +168,17 @@ def nuke_db(collection_name):
 
         # First confirmation
         click.echo("\nTo proceed, type 'NUKE' (or anything else to cancel):")
-        try:
-            confirm1 = input().strip()
-            if confirm1 != "NUKE":
-                click.echo("Operation cancelled.")
-                sys.exit(0)
-        except (EOFError, KeyboardInterrupt):
-            click.echo("\nOperation cancelled - interactive input required.")
-            sys.exit(1)
+        confirm1 = input().strip()
+        if confirm1 != "NUKE":
+            click.echo("Operation cancelled.")
+            return
 
         # Second confirmation
         click.echo("\nFor final confirmation, type 'DATABASE' (or anything else to cancel):")
-        try:
-            confirm2 = input().strip()
-            if confirm2 != "DATABASE":
-                click.echo("Operation cancelled.")
-                sys.exit(0)
-        except (EOFError, KeyboardInterrupt):
-            click.echo("\nOperation cancelled - interactive input required.")
-            sys.exit(1)
+        confirm2 = input().strip()
+        if confirm2 != "DATABASE":
+            click.echo("Operation cancelled.")
+            return
 
         # Final deletion
         click.echo("\nProceeding with database deletion...")

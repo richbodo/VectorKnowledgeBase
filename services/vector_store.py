@@ -57,10 +57,9 @@ class CustomEmbeddingFunction(EmbeddingFunction):
 
 class VectorStore:
     _instance = None
-    
+    CHROMA_PERSIST_DIR = "chroma_db"
+
     def __init__(self):
-        from config import CHROMA_PERSIST_DIR
-        self.CHROMA_PERSIST_DIR = CHROMA_PERSIST_DIR
         try:
             logger.info("Initializing ChromaDB vector store...")
 
@@ -83,28 +82,14 @@ class VectorStore:
             embedding_func = CustomEmbeddingFunction(self.embedding_service)
             logger.info("Custom embedding function created successfully")
 
-            # Check if collection exists and create it if not
-            collection_name = "pdf_documents"
-            existing_collections = [c.name for c in self.client.list_collections()]
-            collection_exists = collection_name in existing_collections
-            
-            if not collection_exists:
-                logger.info(f"Collection '{collection_name}' not found, creating it...")
-                # Create the collection explicitly
-                self.collection = self.client.create_collection(
-                    name=collection_name,
-                    embedding_function=embedding_func,
-                    metadata={"hnsw:space": "cosine"}
-                )
-                logger.info(f"Created collection '{collection_name}'")
-            else:
-                logger.info(f"Collection '{collection_name}' found, getting it")
-                # Get the existing collection
-                self.collection = self.client.get_collection(
-                    name=collection_name,
-                    embedding_function=embedding_func
-                )
-            logger.info(f"Collection '{collection_name}' setup complete")
+            # Use the custom embedding function
+            logger.info("Creating/getting collection...")
+            self.collection = self.client.get_or_create_collection(
+                name="pdf_documents",
+                embedding_function=embedding_func,
+                metadata={"hnsw:space": "cosine"}
+            )
+            logger.info("Collection setup complete")
 
             self.documents: Dict[str, Document] = {}
             self._load_state()
@@ -223,38 +208,6 @@ class VectorStore:
             search_results.sort(key=lambda x: x.similarity_score, reverse=True)
 
             if not search_results:
-
-
-def ensure_collection_exists():
-    """Utility function to ensure the pdf_documents collection exists"""
-    try:
-        from config import CHROMA_PERSIST_DIR
-        logger.info(f"Ensuring pdf_documents collection exists in {CHROMA_PERSIST_DIR}...")
-        client = chromadb.PersistentClient(
-            path=CHROMA_PERSIST_DIR,
-            settings=chromadb.Settings(
-                anonymized_telemetry=False
-            )
-        )
-        
-        collection_name = "pdf_documents"
-        existing_collections = [c.name for c in client.list_collections()]
-        
-        if collection_name not in existing_collections:
-            logger.info(f"Collection '{collection_name}' not found, creating it...")
-            # Create a basic collection without embedding function
-            # The full VectorStore will initialize properly later
-            client.create_collection(name=collection_name)
-            logger.info(f"Created collection '{collection_name}'")
-        else:
-            logger.info(f"Collection '{collection_name}' already exists")
-            
-        return True
-    except Exception as e:
-        logger.error(f"Error ensuring collection exists: {str(e)}")
-        logger.error("Full error details:", exc_info=True)
-        return False
-
                 logger.info("No results met the similarity threshold")
                 return [], "No relevant matches found"
 
@@ -335,26 +288,9 @@ def init_vector_store():
     try:
         logger.info("Initializing vector store singleton...")
         instance = VectorStore.get_instance()
-        
-        # Explicitly verify collection exists after initialization
-        collection_name = "pdf_documents"
-        logger.info(f"Verifying collection '{collection_name}' exists...")
-        
-        # Force create collection if it doesn't exist
-        if collection_name not in instance.client.list_collections():
-            logger.warning(f"Collection '{collection_name}' not found after initialization, creating it now...")
-            # This is just a fallback, the VectorStore.__init__ should have created it already
-            embedding_func = CustomEmbeddingFunction(instance.embedding_service)
-            instance.collection = instance.client.create_collection(
-                name=collection_name,
-                embedding_function=embedding_func,
-                metadata={"hnsw:space": "cosine"}
-            )
-            logger.info(f"Created collection '{collection_name}' as fallback")
-        
         logger.info("Vector store initialization complete")
         debug_info = instance.get_debug_info()
-        logger.info(f"Vector store state: {debug_info}")
+        logger.info(f"Vector store state: {debug_info}") #Removed json.dumps as it's not strictly needed and might cause issues.
         return instance
     except Exception as e:
         logger.error(f"Error initializing vector store: {str(e)}")
