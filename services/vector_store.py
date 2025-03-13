@@ -256,27 +256,87 @@ class VectorStore:
             if collection_count == 0:
                 logger.info("No documents found in ChromaDB based on count")
                 return
-                
-            # Get all document chunks
+            
+            # Try to list all collections to verify our database connection
+            all_collections = self.client.list_collections()
+            logger.info(f"Available collections: {[c.name for c in all_collections]}")
+            
+            # Get all documents using a simpler approach without filters first
             try:
                 logger.info("Fetching all document chunks from ChromaDB")
+                
+                # Direct get without constraints - simplest approach
                 all_results = self.collection.get()
                 
-                if not all_results["ids"] or len(all_results["ids"]) == 0:
-                    logger.warning("Collection count is non-zero but no chunks returned")
-                    return
+                if not all_results or not all_results.get("ids") or len(all_results["ids"]) == 0:
+                    logger.warning("No results returned from basic get() call")
                     
+                    # Try with collection name explicit approach
+                    logger.info("Trying explicit collection retrieval")
+                    collection = self.client.get_collection(name="pdf_documents")
+                    all_results = collection.get()
+                    
+                    if not all_results or not all_results.get("ids") or len(all_results["ids"]) == 0:
+                        # Try the test collection as a fallback
+                        logger.info("Checking for 'test_collection'...")
+                        try:
+                            test_collection = self.client.get_collection(name="test_collection")
+                            test_results = test_collection.get()
+                            logger.info(f"Test collection has {len(test_results.get('ids', []))} documents")
+                            
+                            # If we found documents in test_collection but not in our main collection,
+                            # log detailed info to help diagnose the issue
+                            if test_results and test_results.get("ids") and len(test_results["ids"]) > 0:
+                                logger.info("Found documents in test_collection but not in pdf_documents")
+                                logger.info(f"Test collection documents: {test_results['ids']}")
+                                
+                                # Attempt to import test documents
+                                for i, (doc_id, doc_text, metadata) in enumerate(zip(
+                                    test_results["ids"], 
+                                    test_results["documents"], 
+                                    test_results["metadatas"]
+                                )):
+                                    logger.info(f"Test document {i}: ID={doc_id}, Metadata={metadata}")
+                                    
+                                    # Use the test document ID directly as our document ID
+                                    # Or extract from metadata if available
+                                    doc_id_to_use = metadata.get("test_id", doc_id)
+                                    
+                                    self.documents[doc_id_to_use] = Document(
+                                        id=doc_id_to_use,
+                                        content=doc_text,  # Include content for test documents
+                                        metadata={
+                                            "filename": f"test_document_{i}.txt",
+                                            "content_type": "text/plain",
+                                            "size": len(doc_text),
+                                            "source": metadata.get("source", "test_collection")
+                                        },
+                                        created_at=datetime.now()
+                                    )
+                                
+                                logger.info(f"Imported {len(self.documents)} documents from test collection")
+                        except Exception as test_err:
+                            logger.info(f"Could not access test_collection: {str(test_err)}")
+                        
+                        logger.warning("No documents found in any available collection")
+                        return
+                
                 logger.info(f"Found {len(all_results['ids'])} chunks in ChromaDB")
                 
                 # Extract unique document IDs and their metadata
                 unique_docs = {}
                 
                 for i, (chunk_id, metadata) in enumerate(zip(all_results["ids"], all_results["metadatas"])):
-                    if not metadata or "document_id" not in metadata:
+                    # Handle test collection documents which might not have document_id
+                    if not metadata:
+                        logger.warning(f"Missing metadata for chunk {chunk_id}")
+                        continue
+                    
+                    # For test documents, they might not have document_id but use the chunk ID directly
+                    doc_id = metadata.get("document_id", chunk_id)
+                    if not doc_id:
                         logger.warning(f"Missing document_id in metadata for chunk {chunk_id}")
                         continue
-                        
-                    doc_id = metadata["document_id"]
                     
                     # Only process each document once
                     if doc_id not in unique_docs:
@@ -305,30 +365,6 @@ class VectorStore:
                 logger.error(f"Error querying all documents: {str(query_error)}")
                 logger.error("Full query error details:", exc_info=True)
                 
-                # Try alternative approach with empty where clause
-                logger.info("Trying alternative query with empty where clause")
-                all_results = self.collection.get(where={})
-                
-                if all_results["ids"]:
-                    logger.info(f"Alternative query found {len(all_results['ids'])} chunks")
-                    # Process document IDs as above
-                    unique_doc_ids = set()
-                    for metadata in all_results["metadatas"]:
-                        if metadata and "document_id" in metadata:
-                            doc_id = metadata["document_id"]
-                            unique_doc_ids.add(doc_id)
-                            if doc_id not in self.documents:
-                                self.documents[doc_id] = Document(
-                                    id=doc_id,
-                                    content="",
-                                    metadata={k: v for k, v in metadata.items()
-                                            if k not in ["document_id", "chunk_index", "total_chunks"]},
-                                    created_at=datetime.now()
-                                )
-                    logger.info(f"Alternative query loaded {len(self.documents)} documents")
-                else:
-                    logger.warning("Alternative query also found no documents")
-
         except Exception as e:
             logger.error(f"Could not load existing vector store state: {str(e)}")
             logger.error("Full error details:", exc_info=True)
@@ -339,6 +375,42 @@ class VectorStore:
         try:
             # Force a state reload to ensure latest data
             self._load_state()
+            
+            # Get information about all collections
+            collections_info = []
+            try:
+                all_collections = self.client.list_collections()
+                for collection in all_collections:
+                    try:
+                        coll_instance = self.client.get_collection(name=collection.name)
+                        count = coll_instance.count()
+                        
+                        # Get a sample document if available
+                        sample_info = {}
+                        if count > 0:
+                            try:
+                                sample = coll_instance.get(limit=1)
+                                if sample and sample.get("ids"):
+                                    sample_info = {
+                                        "sample_id": sample["ids"][0],
+                                        "has_metadata": bool(sample.get("metadatas") and sample["metadatas"][0]),
+                                        "metadata_keys": list(sample["metadatas"][0].keys()) if sample.get("metadatas") and sample["metadatas"][0] else []
+                                    }
+                            except Exception as sample_err:
+                                sample_info = {"error": str(sample_err)}
+                                
+                        collections_info.append({
+                            "name": collection.name,
+                            "count": count,
+                            "sample": sample_info
+                        })
+                    except Exception as coll_err:
+                        collections_info.append({
+                            "name": collection.name,
+                            "error": str(coll_err)
+                        })
+            except Exception as list_err:
+                collections_info = [{"error": f"Failed to list collections: {str(list_err)}"}]
 
             return {
                 "document_count": len(self.documents),
@@ -346,20 +418,24 @@ class VectorStore:
                     "name": "pdf_documents",
                     "document_count": self.collection.count() if hasattr(self, 'collection') else 0
                 },
+                "all_collections": collections_info,
                 "documents": [
                     {
                         "id": doc_id,
                         "filename": doc.metadata.get("filename", "Unknown"),
                         "size": doc.metadata.get("size", 0),
+                        "source": doc.metadata.get("source", "pdf_documents"),
                         "created_at": doc.created_at.isoformat() if hasattr(doc, 'created_at') else None
                     }
                     for doc_id, doc in self.documents.items()
-                ]
+                ],
+                "chroma_db_path": os.path.abspath(self.CHROMA_PERSIST_DIR),
+                "chroma_version": chromadb.__version__
             }
         except Exception as e:
             logger.error(f"Error getting debug info: {str(e)}")
             return {
-                "error": "Failed to retrieve debug information",
+                "error": f"Failed to retrieve debug information: {str(e)}",
                 "document_count": 0,
                 "documents": []
             }
