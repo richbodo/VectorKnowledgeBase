@@ -67,12 +67,16 @@ class VectorStore:
             logger.info(f"Directory exists: {os.path.exists(abs_path)}")
             logger.info(f"Initializing ChromaDB vector store at {abs_path}...")
             logger.info(f"ChromaDB version: {chromadb.__version__}")
-            # Simplified client creation with single path reference
+            # Ensure we use the absolute path for ChromaDB persistence
+            abs_db_path = os.path.abspath(CHROMA_DB_PATH)
+            logger.info(f"Using absolute ChromaDB path: {abs_db_path}")
+            
+            # Create client with proper persistence settings
             self.client = chromadb.PersistentClient(
-                path=CHROMA_DB_PATH,
+                path=abs_db_path,
                 settings=chromadb.Settings(
                     anonymized_telemetry=False,
-                    allow_reset=True
+                    allow_reset=False  # Prevent accidental resets
                 )
             )
             logger.info("ChromaDB client created successfully")
@@ -251,25 +255,84 @@ class VectorStore:
     def _load_state(self):
         try:
             logger.info("Loading state from ChromaDB...")
-            # Get all data from collection using get() method
-            raw_data = self.collection.get()
-            logger.info(f"Raw data from collection: {raw_data}")
             
-            # Get count
+            # Get total document count first
             count = self.collection.count()
+            logger.info(f"ChromaDB collection count: {count}")
             
-            # Process the data from raw_data instead of separate calls
-            if raw_data and raw_data['ids']:
-                for idx, doc_id in enumerate(raw_data['ids']):
+            if count == 0:
+                logger.warning("No documents found in ChromaDB (count = 0)")
+                return
+                
+            # CRITICAL: We need to extract unique document IDs from the metadata
+            # Document IDs are stored in each chunk's metadata as 'document_id'
+            try:
+                # Get all document IDs by querying metadata directly
+                all_docs = {}
+                
+                # Use pagination to handle large collections
+                batch_size = 1000
+                for offset in range(0, count, batch_size):
+                    raw_data = self.collection.get(limit=batch_size, offset=offset)
+                    
+                    if not raw_data or not raw_data.get('metadatas'):
+                        continue
+                    
+                    # Extract unique document IDs and metadata from chunks
+                    for i, metadata in enumerate(raw_data['metadatas']):
+                        if not metadata or 'document_id' not in metadata:
+                            continue
+                            
+                        doc_id = metadata['document_id']
+                        if doc_id not in all_docs:
+                            # Create document entry with minimal info
+                            all_docs[doc_id] = {
+                                "filename": metadata.get("filename", "Unknown"),
+                                "content_type": metadata.get("content_type", "Unknown"),
+                                "size": metadata.get("size", 0),
+                                "total_chunks": metadata.get("total_chunks", 0)
+                            }
+                
+                # Now populate the documents dictionary with reconstructed documents
+                for doc_id, doc_info in all_docs.items():
                     self.documents[doc_id] = Document(
                         id=doc_id,
-                        content=raw_data['documents'][idx] if raw_data['documents'] else None,
-                        metadata=raw_data['metadatas'][idx] if raw_data['metadatas'] else {}
+                        content="",  # We don't need to load full content into memory
+                        metadata=doc_info
                     )
-                logger.info(f"Loaded {len(self.documents)} documents from ChromaDB")
-            else:
-                logger.info("No documents found in ChromaDB based on get() response")
-            
+                
+                logger.info(f"Loaded {len(self.documents)} unique documents from ChromaDB")
+                logger.info(f"Document IDs: {list(self.documents.keys())[:5]}...")
+                
+            except Exception as inner_e:
+                logger.error(f"Error retrieving document IDs: {str(inner_e)}", exc_info=True)
+                # Try fallback approach using the first chunk of each document
+                try:
+                    logger.info("Attempting fallback document loading approach...")
+                    # Get all unique IDs from collection
+                    raw_data = self.collection.get(limit=count)
+                    unique_doc_ids = set()
+                    
+                    # Extract document IDs from chunk IDs (assuming format: document_id_chunk_N)
+                    for chunk_id in raw_data['ids']:
+                        if '_chunk_' in chunk_id:
+                            doc_id = chunk_id.split('_chunk_')[0]
+                            unique_doc_ids.add(doc_id)
+                    
+                    logger.info(f"Found {len(unique_doc_ids)} unique document IDs from chunk IDs")
+                    
+                    # Create minimal document objects
+                    for doc_id in unique_doc_ids:
+                        self.documents[doc_id] = Document(
+                            id=doc_id,
+                            content="",
+                            metadata={"recovered": True}
+                        )
+                    
+                    logger.info(f"Recovered {len(self.documents)} documents via fallback method")
+                except Exception as fallback_e:
+                    logger.error(f"Fallback document loading failed: {str(fallback_e)}", exc_info=True)
+                
         except Exception as e:
             logger.error(f"Error during state loading: {str(e)}", exc_info=True)
 
