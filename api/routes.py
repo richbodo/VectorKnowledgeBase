@@ -138,12 +138,15 @@ def upload_document():
 def query_documents():
     """Query endpoint for semantic search"""
     try:
-        if not request.is_json:
-            return json_response({"error": "Request must be JSON"}, 400)
-
-        data = request.get_json()
+        # Check if request is JSON or form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict() or request.args.to_dict()
+            
+        # Get query parameter from different possible sources
         query = data.get('query', '').strip() if data else ''
-
+        
         if not query:
             return json_response({"error": "Query cannot be empty"}, 400)
 

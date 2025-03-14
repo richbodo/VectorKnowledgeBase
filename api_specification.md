@@ -233,3 +233,12 @@ Common error responses include:
 - Text chunking ensures compliance with OpenAI's token limits
 - All responses use UTF-8 encoding
 - Authentication is required for all API endpoints using the VKB_API_KEY
+
+## Authentication
+The API accepts the API key in multiple ways (in order of precedence):
+1. As an HTTP header: `X-API-KEY: your-api-key`
+2. In the JSON request body: `{"X-API-KEY": "your-api-key", ...}`
+3. As a query parameter: `?X-API-KEY=your-api-key`
+4. As a form field: `X-API-KEY=your-api-key`
+
+This flexibility ensures compatibility with various API consumers, including OpenAI Actions.
