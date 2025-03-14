@@ -51,13 +51,8 @@ def reset_and_verify_collection():
 
         # 4. Delete existing collection if it exists
         existing_collections = client.list_collections()
-        logger.info(f"Existing collections before deletion: {[c.name for c in existing_collections]}")
-        collection_exists = False
-        
-        for collection in existing_collections:
-            if collection.name == "pdf_documents":
-                collection_exists = True
-                break
+        logger.info(f"Existing collections before deletion: {existing_collections}")
+        collection_exists = "pdf_documents" in existing_collections
                 
         if collection_exists:
             logger.info("Deleting existing 'pdf_documents' collection...")
@@ -79,7 +74,7 @@ def reset_and_verify_collection():
         
         # 6. Verify collection creation
         collections_after_creation = client.list_collections()
-        logger.info(f"Collections after creation: {[c.name for c in collections_after_creation]}")
+        logger.info(f"Collections after creation: {collections_after_creation}")
         
         # 7. Test adding a document
         test_doc_id = f"test_{datetime.now().strftime('%Y%m%d%H%M%S')}"
