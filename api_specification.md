@@ -237,8 +237,10 @@ Common error responses include:
 ## Authentication
 The API accepts the API key in multiple ways (in order of precedence):
 1. As an HTTP header: `X-API-KEY: your-api-key`
-2. In the JSON request body: `{"X-API-KEY": "your-api-key", ...}`
-3. As a query parameter: `?X-API-KEY=your-api-key`
-4. As a form field: `X-API-KEY=your-api-key`
+2. In the JSON request body: `{"X-API-KEY": "your-api-key", ...}` or `{"X__API__KEY": "your-api-key", ...}`
+3. As a query parameter: `?X-API-KEY=your-api-key` or `?X__API__KEY=your-api-key`
+4. As a form field: `X-API-KEY=your-api-key` or `X__API__KEY=your-api-key`
+
+Note: The double underscore format (X__API__KEY) is specifically supported for compatibility with OpenAI's API integration.
 
 This flexibility ensures compatibility with various API consumers, including OpenAI Actions.

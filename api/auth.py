@@ -25,12 +25,19 @@ def require_api_key(f):
         # If not in headers, check in JSON data
         if not api_key and request.is_json:
             json_data = request.get_json()
-            if json_data and 'X-API-KEY' in json_data:
-                api_key = json_data.get('X-API-KEY')
+            if json_data:
+                # Check for API key with different formats (hyphen or double underscores)
+                if 'X-API-KEY' in json_data:
+                    api_key = json_data.get('X-API-KEY')
+                elif 'X__API__KEY' in json_data:
+                    api_key = json_data.get('X__API__KEY')
         
-        # If still not found, check in form data and query parameters
+        # If still not found, check in form data and query parameters (both formats)
         if not api_key:
-            api_key = request.form.get('X-API-KEY') or request.args.get('X-API-KEY')
+            api_key = (request.form.get('X-API-KEY') or 
+                      request.form.get('X__API__KEY') or 
+                      request.args.get('X-API-KEY') or 
+                      request.args.get('X__API__KEY'))
 
         if not api_key:
             logger.warning("API request missing API key")
