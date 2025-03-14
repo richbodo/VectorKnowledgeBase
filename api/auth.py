@@ -19,10 +19,21 @@ def require_api_key(f):
             logger.warning("Deployment mode or missing API key - skipping authentication")
             return f(*args, **kwargs)
 
+        # Check for API key in headers first
         api_key = request.headers.get('X-API-KEY')
+        
+        # If not in headers, check in JSON data
+        if not api_key and request.is_json:
+            json_data = request.get_json()
+            if json_data and 'X-API-KEY' in json_data:
+                api_key = json_data.get('X-API-KEY')
+        
+        # If still not found, check in form data and query parameters
+        if not api_key:
+            api_key = request.form.get('X-API-KEY') or request.args.get('X-API-KEY')
 
         if not api_key:
-            logger.warning("API request missing X-API-KEY header")
+            logger.warning("API request missing API key")
             return jsonify({"error": "Missing API key"}), 401
 
         if api_key != VKB_API_KEY:
