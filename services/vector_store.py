@@ -91,10 +91,11 @@ class VectorStore:
             embedding_func = CustomEmbeddingFunction(self.embedding_service)
             logger.info("Custom embedding function created successfully")
 
-            # Use the custom embedding function
-            logger.info("Creating/getting collection...")
+            # CRITICAL FIX: Explicitly specify embedding function here
+            logger.info("Creating/getting collection with embedding function...")
             self.collection = self.client.get_or_create_collection(
                 name="pdf_documents",
+                embedding_function=embedding_func,  # <-- CRITICAL FIX HERE
                 metadata={"hnsw:space": "cosine"}
             )
             
