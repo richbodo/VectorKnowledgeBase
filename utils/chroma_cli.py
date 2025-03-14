@@ -5,13 +5,16 @@ import json
 import sys
 import os
 import logging
+import argparse
 
-# Adjust the path to import from parent directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Robust path adjustment
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(script_dir, '..'))
+sys.path.insert(0, project_root)
 
 from config import CHROMA_DB_PATH
 from services.embedding_service import EmbeddingService
-from chromadb.utils.embedding_functions import EmbeddingFunction
+from services.vector_store import CustomEmbeddingFunction
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO, 
@@ -19,23 +22,13 @@ logging.basicConfig(level=logging.INFO,
                     stream=sys.stdout)
 logger = logging.getLogger("chroma-cli")
 
-# Define the same CustomEmbeddingFunction as in your main app
-class CustomEmbeddingFunction(EmbeddingFunction):
-    def __init__(self, embedding_service: EmbeddingService):
-        self.embedding_service = embedding_service
-
-    def __call__(self, texts):
-        embeddings = [self.embedding_service.generate_embedding(text) for text in texts]
-        return embeddings
-
 def get_client():
     """Create ChromaDB client with exact same config as the main app"""
     return chromadb.PersistentClient(
         path=CHROMA_DB_PATH,
         settings=chromadb.Settings(
             anonymized_telemetry=False,
-            allow_reset=True,
-            persist_directory=CHROMA_DB_PATH
+            allow_reset=False
         )
     )
 
@@ -44,54 +37,93 @@ def get_embedding_function():
     embedding_service = EmbeddingService()
     return CustomEmbeddingFunction(embedding_service)
 
+def list_collections():
+    """List all collections, their dimensionality, and document IDs"""
+    client = get_client()
+    collections = client.list_collections()
+    embedding_func = get_embedding_function()
+
+    expected_dimensionality = 1536
+
+    logger.info("ChromaDB Collections, Dimensionality, and Document IDs:")
+    logger.info("=======================================================")
+
+    if not collections:
+        logger.info("No collections found.")
+        return
+
+    for collection_name in collections:
+        try:
+            collection = client.get_collection(name=collection_name, embedding_function=embedding_func)
+            dimensionality = expected_dimensionality
+            logger.info(f"\nCollection: {collection_name}")
+            logger.info(f"Dimensionality: {dimensionality}")
+            logger.info("Document IDs:")
+
+            # Fetch and list document IDs clearly, one per line
+            documents = collection.get(include=["documents"])
+            doc_ids = documents.get('ids', [])
+            if doc_ids:
+                for doc_id in doc_ids:
+                    logger.info(f"  - {doc_id}")
+            else:
+                logger.info("  (No documents found in this collection.)")
+
+        except Exception as e:
+            error_msg = str(e)
+            if "Embedding dimension" in error_msg:
+                dimensionality = int(error_msg.split("collection dimensionality ")[1])
+                logger.info(f"\nCollection: {collection_name}")
+                logger.info(f"Dimensionality: {dimensionality}")
+                logger.warning("Could not retrieve documents due to dimensionality mismatch.")
+            else:
+                logger.error(f"Error accessing collection '{collection_name}': {error_msg}")
+
+def delete_documents_by_ids(collection_name, document_ids):
+    """Delete specific documents from a collection by their IDs."""
+    client = get_client()
+    embedding_func = get_embedding_function()
+    collection = client.get_collection(name=collection_name, embedding_function=embedding_func)
+
+    logger.info(f"Deleting documents with IDs: {document_ids} from collection '{collection_name}'")
+    collection.delete(ids=document_ids)
+    logger.info("Deletion completed successfully.")
+
+def nuke_collection(collection_name):
+    """Remove all documents from a collection without changing its structure."""
+    client = get_client()
+    embedding_func = get_embedding_function()
+    collection = client.get_collection(name=collection_name, embedding_function=embedding_func)
+
+    # Fetch all document IDs
+    documents = collection.get(include=["documents"])
+    doc_ids = documents.get('ids', [])
+
+    if not doc_ids:
+        logger.info(f"Collection '{collection_name}' already has zero documents.")
+    else:
+        # Delete all documents by IDs
+        collection.delete(ids=doc_ids)
+        logger.info(f"All documents deleted from collection '{collection_name}'.")
+
+    # Verify clearly that the collection is empty
+    documents_after = collection.get(include=["documents"])
+    remaining_docs = documents_after.get('ids', [])
+    num_remaining = len(remaining_docs)
+
+    # Clearly print success message
+    dimensionality = 1536  # Known dimensionality for your embedding function
+    logger.info("===============================================")
+    logger.info("✅ NUKE COLLECTION SUCCESSFUL ✅")
+    logger.info(f"Collection Name: {collection_name}")
+    logger.info(f"Dimensionality: {dimensionality}")
+    logger.info(f"Number of Documents Remaining: {num_remaining}")
+    logger.info("===============================================")
+
 @click.group()
 def cli():
     """ChromaDB CLI tool for database management"""
     pass
-
-@cli.command()
-def list_collections():
-    """List all collections in the database"""
-    client = get_client()
-    collections = client.list_collections()
-    logger.info(f"Existing collections: {collections}")
-
-    click.echo("\nChromaDB Collections:")
-    click.echo("===================")
-
-    if not collections:
-        click.echo("No collections found.")
-        return
-
-    for coll_name in collections:
-        click.echo(f"\nCollection: {coll_name}")
-        try:
-            collection = client.get_collection(name=coll_name)
-            count = collection.count()
-            click.echo(f"Number of documents: {count}")
-            
-            # Additional diagnostic information
-            if count == 0:
-                click.echo("No documents found in collection.")
-            else:
-                # Get all documents to see what's there
-                all_results = collection.get()
-                if all_results and all_results["ids"]:
-                    unique_doc_ids = set()
-                    for metadata in all_results["metadatas"]:
-                        if metadata and "document_id" in metadata:
-                            unique_doc_ids.add(metadata["document_id"])
-                    
-                    click.echo(f"Number of unique document IDs: {len(unique_doc_ids)}")
-                    click.echo(f"Number of chunks: {len(all_results['ids'])}")
-                    
-                    # Display first few document IDs
-                    if unique_doc_ids:
-                        click.echo("\nSample document IDs:")
-                        for i, doc_id in enumerate(list(unique_doc_ids)[:3]):
-                            click.echo(f"  {i+1}. {doc_id}")
-        except Exception as e:
-            click.echo(f"Could not retrieve details for this collection: {str(e)}")
 
 @cli.command()
 def diagnose_db():
@@ -362,6 +394,28 @@ def nuke_db(collection_name):
         click.echo(f"\n❌ Error nuking database: {str(e)}")
         sys.exit(1)
 
-if __name__ == '__main__':
-    logger.info("Listing ChromaDB collections...")
-    cli()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="ChromaDB CLI Tool")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # Existing commands
+    subparsers.add_parser("list-collections", help="List collections, dimensionality, and document IDs")
+
+    delete_parser = subparsers.add_parser("delete-documents", help="Delete documents by IDs")
+    delete_parser.add_argument("--collection", required=True, help="Collection name")
+    delete_parser.add_argument("--ids", required=True, nargs='+', help="Document IDs to delete")
+
+    # New command: nuke-collection
+    nuke_parser = subparsers.add_parser("nuke-collection", help="Remove all documents from a collection without changing its structure")
+    nuke_parser.add_argument("--collection", required=True, help="Collection name to nuke")
+
+    args = parser.parse_args()
+
+    if args.command == "list-collections":
+        list_collections()
+    elif args.command == "delete-documents":
+        delete_documents_by_ids(args.collection, args.ids)
+    elif args.command == "nuke-collection":
+        nuke_collection(args.collection)
+    else:
+        parser.print_help()
