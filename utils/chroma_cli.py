@@ -4,20 +4,45 @@ import chromadb
 import json
 import sys
 import os
+import logging
 
-# Use the same ChromaDB directory as the main application
-CHROMA_PERSIST_DIR = "chroma_db"
+# Adjust the path to import from parent directory
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from config import CHROMA_DB_PATH
+from services.embedding_service import EmbeddingService
+from chromadb.utils.embedding_functions import EmbeddingFunction
+
+# Set up basic logging
+logging.basicConfig(level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    stream=sys.stdout)
+logger = logging.getLogger("chroma-cli")
+
+# Define the same CustomEmbeddingFunction as in your main app
+class CustomEmbeddingFunction(EmbeddingFunction):
+    def __init__(self, embedding_service: EmbeddingService):
+        self.embedding_service = embedding_service
+
+    def __call__(self, texts):
+        embeddings = [self.embedding_service.generate_embedding(text) for text in texts]
+        return embeddings
 
 def get_client():
     """Create ChromaDB client with exact same config as the main app"""
     return chromadb.PersistentClient(
-        path=CHROMA_PERSIST_DIR,
+        path=CHROMA_DB_PATH,
         settings=chromadb.Settings(
             anonymized_telemetry=False,
             allow_reset=True,
-            persist_directory=CHROMA_PERSIST_DIR
+            persist_directory=CHROMA_DB_PATH
         )
     )
+
+def get_embedding_function():
+    """Initialize embedding function exactly as the main app does"""
+    embedding_service = EmbeddingService()
+    return CustomEmbeddingFunction(embedding_service)
 
 @click.group()
 def cli():
@@ -29,6 +54,7 @@ def list_collections():
     """List all collections in the database"""
     client = get_client()
     collections = client.list_collections()
+    logger.info(f"Existing collections: {collections}")
 
     click.echo("\nChromaDB Collections:")
     click.echo("===================")
@@ -109,7 +135,7 @@ def diagnose_db():
                 click.echo(f"❌ Error accessing collection: {str(e)}")
                 
         # Check database files
-        db_path = CHROMA_PERSIST_DIR
+        db_path = CHROMA_DB_PATH
         if os.path.exists(db_path):
             files = os.listdir(db_path)
             click.echo(f"\nDatabase directory contains {len(files)} items")
@@ -337,4 +363,5 @@ def nuke_db(collection_name):
         sys.exit(1)
 
 if __name__ == '__main__':
+    logger.info("Listing ChromaDB collections...")
     cli()
