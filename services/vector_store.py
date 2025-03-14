@@ -83,19 +83,23 @@ class VectorStore:
 
             # Initialize embedding service first
             logger.info("Initializing embedding service...")
-            self.embedding_service = EmbeddingService()
+            embedding_service = EmbeddingService()
             logger.info("Embedding service initialized successfully")
 
             # Create embedding function instance
             logger.info("Creating custom embedding function...")
-            embedding_func = CustomEmbeddingFunction(self.embedding_service)
+            embedding_func = CustomEmbeddingFunction(embedding_service)
             logger.info("Custom embedding function created successfully")
 
-            # CRITICAL FIX: Explicitly specify embedding function here
+            # Verify embedding dimensionality explicitly
+            test_embedding = embedding_func(["test"])
+            logger.info(f"Embedding dimensionality: {len(test_embedding[0])}")
+
+            # Create/get collection explicitly with embedding function
             logger.info("Creating/getting collection with embedding function...")
             self.collection = self.client.get_or_create_collection(
                 name="pdf_documents",
-                embedding_function=embedding_func,  # <-- CRITICAL FIX HERE
+                embedding_function=embedding_func,
                 metadata={"hnsw:space": "cosine"}
             )
             
@@ -104,7 +108,11 @@ class VectorStore:
             logger.info(f"Collection initialized with {collection_count} existing documents")
             logger.info("Collection setup complete")
 
-            logger.info(f"Embedding function used: {self.collection._embedding_function}")
+            logger.info(f"Embedding function explicitly set: {self.collection._embedding_function}")
+
+            # Verify collection metadata explicitly
+            collection_metadata = self.collection.metadata
+            logger.info(f"Collection metadata: {collection_metadata}")
 
             self.documents: Dict[str, Document] = {}
             self._load_state()
