@@ -410,11 +410,70 @@ class VectorStore:
 def init_vector_store():
     """Initialize vector store singleton"""
     try:
+        logger.info("======= VECTOR STORE INITIALIZATION =======")
+        logger.info(f"ChromaDB path: {os.path.abspath(CHROMA_DB_PATH)}")
+        logger.info(f"ChromaDB directory exists: {os.path.exists(CHROMA_DB_PATH)}")
+        
+        # If directory exists, check its contents before initialization
+        if os.path.exists(CHROMA_DB_PATH):
+            try:
+                contents = os.listdir(CHROMA_DB_PATH)
+                logger.info(f"ChromaDB directory contents before init: {contents}")
+                
+                # Check if SQLite file exists and its size
+                sqlite_path = os.path.join(CHROMA_DB_PATH, "chroma.sqlite3")
+                if os.path.exists(sqlite_path):
+                    size_mb = os.path.getsize(sqlite_path) / (1024 * 1024)
+                    logger.info(f"SQLite file exists with size: {size_mb:.2f} MB")
+            except Exception as dir_e:
+                logger.error(f"Error checking directory contents: {str(dir_e)}")
+        
         logger.info("Initializing vector store singleton...")
         instance = VectorStore.get_instance()
         logger.info("Vector store initialization complete")
+        
+        # Get and log debug info
         debug_info = instance.get_debug_info()
-        logger.info(f"Vector store state: {debug_info}") #Removed json.dumps as it's not strictly needed and might cause issues.
+        logger.info(f"Vector store state: {debug_info}")
+        
+        # Verify ChromaDB state after initialization
+        logger.info("Verifying ChromaDB state after initialization...")
+        if os.path.exists(CHROMA_DB_PATH):
+            try:
+                contents = os.listdir(CHROMA_DB_PATH)
+                logger.info(f"ChromaDB directory contents after init: {contents}")
+                
+                # Check if SQLite file exists and its size
+                sqlite_path = os.path.join(CHROMA_DB_PATH, "chroma.sqlite3")
+                if os.path.exists(sqlite_path):
+                    size_mb = os.path.getsize(sqlite_path) / (1024 * 1024)
+                    logger.info(f"SQLite file exists with size: {size_mb:.2f} MB")
+                    
+                    # Optional: Add direct SQLite validation
+                    try:
+                        import sqlite3
+                        conn = sqlite3.connect(sqlite_path)
+                        cursor = conn.cursor()
+                        
+                        # Check tables
+                        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                        tables = cursor.fetchall()
+                        logger.info(f"SQLite tables: {[t[0] for t in tables]}")
+                        
+                        # Check embeddings count if table exists
+                        try:
+                            cursor.execute("SELECT COUNT(*) FROM embeddings;")
+                            embedding_count = cursor.fetchone()[0]
+                            logger.info(f"Embeddings table count: {embedding_count}")
+                        except sqlite3.OperationalError:
+                            logger.info("No 'embeddings' table found")
+                            
+                        conn.close()
+                    except Exception as sql_e:
+                        logger.error(f"Error checking SQLite: {str(sql_e)}")
+            except Exception as dir_e:
+                logger.error(f"Error checking directory contents: {str(dir_e)}")
+        
         return instance
     except Exception as e:
         logger.error(f"Error initializing vector store: {str(e)}")
