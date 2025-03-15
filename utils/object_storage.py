@@ -89,13 +89,13 @@ class ChromaObjectStorage:
                     
                     # Upload the file with full absolute path
                     logger.info(f"Uploading file {file_path} to {storage_key}")
-                    self.client.upload_from_filename(os.path.abspath(file_path), storage_key)
+                    self.client.upload_from_filename(storage_key, os.path.abspath(file_path))
                     logger.info(f"Uploaded {filename} to Object Storage")
                     
                     # Also store a timestamped version for historical tracking
                     history_key = f"{self.storage_prefix}history/{timestamp}/{filename}"
                     logger.info(f"Creating history version at {history_key}")
-                    self.client.upload_from_filename(os.path.abspath(file_path), history_key)
+                    self.client.upload_from_filename(history_key, os.path.abspath(file_path))
                     
             # Create a manifest file with timestamp and file list
             manifest = {
@@ -110,7 +110,7 @@ class ChromaObjectStorage:
             
             # Upload manifest
             manifest_key = self._get_storage_path("manifest.json")
-            self.client.upload_from_bytes(manifest_content, manifest_key)
+            self.client.upload_from_bytes(manifest_key, manifest_content)
             logger.info(f"Created backup manifest in Object Storage")
             
             return True, f"Backup completed at {timestamp}"
@@ -193,7 +193,7 @@ class ChromaObjectStorage:
                     logger.info(f"Local SQLite file exists with size: {size_mb:.2f} MB, modified: {mod_time}")
                 
             # Check if database exists in Object Storage
-            manifest_key = f"{self.storage_prefix}manifest.json"
+            manifest_key = self._get_storage_path("manifest.json")
             storage_db_exists = self.client.exists(manifest_key)
             
             # If neither exists, we have a fresh start
