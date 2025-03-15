@@ -49,7 +49,27 @@ class ChromaObjectStorage:
         try:
             # List objects with the ChromaDB prefix
             objects = list(self.client.list(prefix=self.storage_prefix))
-            return [obj.key for obj in objects]
+            
+            # Handle different response formats from Replit Object Storage
+            file_list = []
+            for obj in objects:
+                try:
+                    if hasattr(obj, 'key'):
+                        file_list.append(obj.key)
+                    elif isinstance(obj, str):
+                        file_list.append(obj)
+                    elif hasattr(obj, 'name'):
+                        file_list.append(obj.name)
+                    elif isinstance(obj, dict) and 'key' in obj:
+                        file_list.append(obj['key'])
+                    else:
+                        # Last resort - convert object to string
+                        file_list.append(str(obj))
+                except Exception as obj_error:
+                    logger.warning(f"Error processing object in list: {str(obj_error)}")
+                    continue
+                    
+            return file_list
         except Exception as e:
             logger.error(f"Error listing files in Object Storage: {str(e)}")
             return []
