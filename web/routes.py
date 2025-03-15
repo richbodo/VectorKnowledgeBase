@@ -10,11 +10,7 @@ bp = Blueprint('web', __name__)
 def index():
     """Render the main page"""
     vector_store = VectorStore.get_instance()
-    debug_info = vector_store.get_debug_info()
-    
-    # Fix for template compatibility - move document_details to documents
-    if 'document_details' in debug_info and 'documents' not in debug_info:
-        debug_info['documents'] = debug_info['document_details']
+    doc_count = len(vector_store.documents)
     
     # Get query parameter if it exists
     query = request.args.get('query', '')
@@ -31,10 +27,41 @@ def index():
             flash(error_msg, "error")
 
     return render_template('index.html', 
-                         debug_info=debug_info, 
+                         document_count=doc_count, 
                          query=query, 
                          results=results,
                          api_key=VKB_API_KEY)  # Pass API key to template
+
+@bp.route('/diagnostics', methods=['GET'])
+def diagnostics():
+    """Render the unified diagnostics page"""
+    vector_store = VectorStore.get_instance()
+    debug_info = vector_store.get_debug_info()
+    
+    # Fix for template compatibility - move document_details to documents
+    if 'document_details' in debug_info and 'documents' not in debug_info:
+        debug_info['documents'] = debug_info['document_details']
+    
+    # Get more detailed database info
+    db_path = debug_info.get('db_path', '')
+    db_exists = debug_info.get('db_exists', False)
+    db_contents = debug_info.get('db_contents', [])
+    db_size_mb = debug_info.get('db_size_mb', 0)
+    embeddings_count = debug_info.get('sqlite_embeddings_count', 0)
+    unique_doc_count = debug_info.get('sqlite_unique_doc_count', 0)
+    
+    # Get ChromaDB version info
+    chromadb_version = debug_info.get('chromadb_version', 'Unknown')
+    
+    return render_template('diagnostics.html', 
+                         debug_info=debug_info, 
+                         db_path=db_path,
+                         db_exists=db_exists,
+                         db_contents=db_contents,
+                         db_size_mb=db_size_mb,
+                         embeddings_count=embeddings_count,
+                         unique_doc_count=unique_doc_count,
+                         chromadb_version=chromadb_version)
 
 @bp.route('/debug-info', methods=['GET'])
 def get_debug_info():

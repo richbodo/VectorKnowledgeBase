@@ -9,7 +9,7 @@ from services.vector_store import init_vector_store
 # Configure logging
 # Determine if we're in a production environment
 is_production = bool(os.environ.get("REPL_DEPLOYMENT", False))
-log_level = logging.INFO if is_production else logging.DEBUG
+log_level = logging.DEBUG  # Use DEBUG level for both production and development
 log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 # Configure root logger

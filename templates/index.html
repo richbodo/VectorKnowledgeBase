@@ -83,8 +83,8 @@
                     .then(data => {
                         if (data.success) {
                             alert('File uploaded successfully!\nDocument ID: ' + data.document_id);
-                            // Update debug info instead of full page reload
-                            refreshDebugInfo();
+                            // Reload the page to update the document count
+                            window.location.reload();
                         } else {
                             alert('Upload failed: ' + (data.error || 'Unknown error'));
                         }
@@ -231,55 +231,28 @@
         </div>
         {% endif %}
 
-        <!-- Debug Information Section -->
+        <!-- System Information Section -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h2 class="h5 mb-0">Debug Information</h2>
+                <h2 class="h5 mb-0">System Information</h2>
                 <div>
-                    <a href="{{ url_for('monitoring.database_diagnostic') }}" class="btn btn-sm btn-primary me-2" target="_blank">
-                        Database Diagnostics
+                    <a href="{{ url_for('web.diagnostics') }}" class="btn btn-sm btn-primary me-2">
+                        System Diagnostics
                     </a>
-                    <a href="{{ url_for('monitoring.test_openai_connection') }}" class="btn btn-sm btn-info me-2" target="_blank">
-                        Test OpenAI Connection
-                    </a>
-                    <button class="btn btn-sm btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#debugInfo">
-                        Toggle Debug Info
-                    </button>
                 </div>
             </div>
-            <div id="debugInfo" class="collapse show">
-                <div class="card-body">
-                    <h3 class="h6">Vector Store State:</h3>
-                    <pre class="bg-dark text-light p-3 rounded">
-Document Count: {{ debug_info.document_count }}
-Index Size: {{ debug_info.index_size }}
-
-{% if debug_info.last_api_error %}
-API Error:
-{{ debug_info.last_api_error }}
-{% endif %}
-
-Documents:
-{% for doc in debug_info.documents %}
-- ID: {{ doc.id }}
-  Filename: {{ doc.filename }}
-  Size: {{ doc.size }} bytes
-  Created: {{ doc.created_at }}
-{% endfor %}
-                    </pre>
-
-                    {% if error %}
-                    <h3 class="h6 mt-3">Error Information:</h3>
-                    <pre class="bg-dark text-light p-3 rounded">{{ error }}</pre>
-                    {% endif %}
-
-                    <h3 class="h6 mt-3">Server Logs:</h3>
-                    <pre class="bg-dark text-light p-3 rounded" style="max-height: 300px; overflow-y: auto;">
-{% for category, message in get_flashed_messages(with_categories=true) %}
-[{{ category }}] {{ message }}
-{% endfor %}
-                    </pre>
+            <div class="card-body">
+                <h3 class="h6">Vector Store State:</h3>
+                <div class="bg-light p-3 rounded">
+                    <p class="mb-0">
+                        <strong>Document Count:</strong> {{ document_count }}
+                    </p>
                 </div>
+                
+                {% if error %}
+                <h3 class="h6 mt-3">Error Information:</h3>
+                <pre class="bg-dark text-light p-3 rounded">{{ error }}</pre>
+                {% endif %}
             </div>
         </div>
     </div>
