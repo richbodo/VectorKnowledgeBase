@@ -44,12 +44,12 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4">
-                            <div class="card mb-3 bg-light">
+                            <div class="card mb-3 bg-light text-dark">
                                 <div class="card-body">
                                     <h5 class="card-title h6">Document Summary</h5>
-                                    <p class="mb-1"><strong>Total Documents:</strong> <span id="document-count">{{ debug_info.document_count }}</span></p>
-                                    <p class="mb-1"><strong>Index Size:</strong> <span id="index-size">{{ debug_info.index_size }}</span></p>
-                                    <p class="mb-0"><strong>Embedding Count:</strong> <span id="embedding-count">{{ debug_info.sqlite_embeddings_count|default('N/A') }}</span></p>
+                                    <p class="mb-1 text-dark"><strong>Total Documents:</strong> <span id="document-count">{{ debug_info.document_count }}</span></p>
+                                    <p class="mb-1 text-dark"><strong>Index Size:</strong> <span id="index-size">{{ debug_info.index_size }}</span></p>
+                                    <p class="mb-0 text-dark"><strong>Embedding Count:</strong> <span id="embedding-count">{{ debug_info.sqlite_embeddings_count|default('N/A') }}</span></p>
                                 </div>
                             </div>
                         </div>
@@ -126,22 +126,22 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="card mb-3 bg-light">
+                            <div class="card mb-3 bg-light text-dark">
                                 <div class="card-body">
                                     <h5 class="card-title h6">Database Information</h5>
-                                    <p class="mb-1"><strong>DB Path:</strong> <span id="db-path">{{ debug_info.db_path }}</span></p>
-                                    <p class="mb-1"><strong>DB Size:</strong> <span id="db-size">{{ debug_info.db_size_mb|default('Unknown') }} MB</span></p>
-                                    <p class="mb-0"><strong>Collection Count:</strong> <span id="collection-count">{{ debug_info.collection_count|default('Unknown') }}</span></p>
+                                    <p class="mb-1 text-dark"><strong>DB Path:</strong> <span id="db-path">{{ debug_info.db_path }}</span></p>
+                                    <p class="mb-1 text-dark"><strong>DB Size:</strong> <span id="db-size">{{ debug_info.db_size_mb|default('Unknown') }} MB</span></p>
+                                    <p class="mb-0 text-dark"><strong>Collection Count:</strong> <span id="collection-count">{{ debug_info.collection_count|default('Unknown') }}</span></p>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card mb-3 bg-light">
+                            <div class="card mb-3 bg-light text-dark">
                                 <div class="card-body">
                                     <h5 class="card-title h6">Collection Details</h5>
-                                    <p class="mb-1"><strong>Collection Name:</strong> <span id="collection-name">{{ debug_info.collection_name|default('pdf_documents') }}</span></p>
-                                    <p class="mb-1"><strong>Embedding Count:</strong> <span id="embedding-count-chroma">{{ debug_info.embedding_count|default('Unknown') }}</span></p>
-                                    <p class="mb-0"><strong>Embedding Dimension:</strong> <span id="embedding-dimension">{{ debug_info.embedding_dimension|default('Unknown') }}</span></p>
+                                    <p class="mb-1 text-dark"><strong>Collection Name:</strong> <span id="collection-name">{{ debug_info.collection_name|default('pdf_documents') }}</span></p>
+                                    <p class="mb-1 text-dark"><strong>Embedding Count:</strong> <span id="embedding-count-chroma">{{ debug_info.embedding_count|default('Unknown') }}</span></p>
+                                    <p class="mb-0 text-dark"><strong>Embedding Dimension:</strong> <span id="embedding-dimension">{{ debug_info.embedding_dimension|default('Unknown') }}</span></p>
                                 </div>
                             </div>
                         </div>
@@ -216,7 +216,7 @@
                     <div class="row mt-4">
                         <div class="col-md-6">
                             <div class="card mb-3">
-                                <div class="card-header bg-light">
+                                <div class="card-header bg-light text-dark">
                                     <h3 class="h6 mb-0">Embedding Service</h3>
                                 </div>
                                 <div class="card-body">
@@ -228,7 +228,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="card mb-3">
-                                <div class="card-header bg-light">
+                                <div class="card-header bg-light text-dark">
                                     <h3 class="h6 mb-0">API Statistics</h3>
                                 </div>
                                 <div class="card-body">
@@ -252,22 +252,22 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="card mb-3 bg-light">
+                            <div class="card mb-3 bg-light text-dark">
                                 <div class="card-body">
                                     <h5 class="card-title h6">Server Status</h5>
-                                    <p class="mb-1"><strong>Environment:</strong> <span id="environment">{{ debug_info.environment|default('production') }}</span></p>
-                                    <p class="mb-1"><strong>Uptime:</strong> <span id="uptime">{{ debug_info.uptime|default('Unknown') }}</span></p>
-                                    <p class="mb-0"><strong>Flask Version:</strong> <span id="flask-version">{{ debug_info.flask_version|default('Unknown') }}</span></p>
+                                    <p class="mb-1 text-dark"><strong>Environment:</strong> <span id="environment">{{ debug_info.environment|default('production') }}</span></p>
+                                    <p class="mb-1 text-dark"><strong>Uptime:</strong> <span id="uptime">{{ debug_info.uptime|default('Unknown') }}</span></p>
+                                    <p class="mb-0 text-dark"><strong>Flask Version:</strong> <span id="flask-version">{{ debug_info.flask_version|default('Unknown') }}</span></p>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card mb-3 bg-light">
+                            <div class="card mb-3 bg-light text-dark">
                                 <div class="card-body">
                                     <h5 class="card-title h6">Memory Usage</h5>
-                                    <p class="mb-1"><strong>Used Memory:</strong> <span id="used-memory">{{ debug_info.used_memory|default('Unknown') }}</span></p>
-                                    <p class="mb-1"><strong>Available Memory:</strong> <span id="available-memory">{{ debug_info.available_memory|default('Unknown') }}</span></p>
-                                    <p class="mb-0"><strong>Memory Percentage:</strong> <span id="memory-percentage">{{ debug_info.memory_percentage|default('Unknown') }}%</span></p>
+                                    <p class="mb-1 text-dark"><strong>Used Memory:</strong> <span id="used-memory">{{ debug_info.used_memory|default('Unknown') }}</span></p>
+                                    <p class="mb-1 text-dark"><strong>Available Memory:</strong> <span id="available-memory">{{ debug_info.available_memory|default('Unknown') }}</span></p>
+                                    <p class="mb-0 text-dark"><strong>Memory Percentage:</strong> <span id="memory-percentage">{{ debug_info.memory_percentage|default('Unknown') }}%</span></p>
                                 </div>
                             </div>
                         </div>
