@@ -73,14 +73,32 @@ class VectorStore:
             abs_db_path = os.path.abspath(CHROMA_DB_PATH)
             logger.info(f"Using absolute ChromaDB path: {abs_db_path}")
             
-            # Create client with proper persistence settings
+            # CRITICAL FIX: Create client with proper persistence settings
+            logger.info(f"Explicitly setting ChromaDB persistence path to: {abs_db_path}")
+            
+            # Check if directory exists first
+            if not os.path.exists(abs_db_path):
+                try:
+                    os.makedirs(abs_db_path, exist_ok=True)
+                    logger.info(f"Created ChromaDB directory: {abs_db_path}")
+                except Exception as e:
+                    logger.error(f"Failed to create ChromaDB directory: {str(e)}")
+            
+            # Create client with absolute persistence path
             self.client = chromadb.PersistentClient(
-                path=abs_db_path,
+                path=abs_db_path,  # Absolutely critical to use the right path
                 settings=chromadb.Settings(
                     anonymized_telemetry=False,
-                    allow_reset=False  # Prevent accidental resets
+                    allow_reset=False,  # Prevent accidental resets
+                    is_persistent=True  # Explicitly set persistence flag
                 )
             )
+            
+            # After client creation, check if directory exists
+            if os.path.exists(abs_db_path):
+                contents = os.listdir(abs_db_path)
+                logger.info(f"After client creation, ChromaDB directory contains: {contents}")
+            
             logger.info("ChromaDB client created successfully")
 
             # Initialize embedding service first
@@ -93,13 +111,45 @@ class VectorStore:
             embedding_func = CustomEmbeddingFunction(self.embedding_service)
             logger.info("Custom embedding function created successfully")
 
-            # CRITICAL FIX: Explicitly specify embedding function here
-            logger.info("Creating/getting collection with embedding function...")
-            self.collection = self.client.get_or_create_collection(
-                name="pdf_documents",
-                embedding_function=embedding_func,  # <-- CRITICAL FIX HERE
-                metadata={"hnsw:space": "cosine"}
-            )
+            # CRITICAL FIX: First check if collection already exists to avoid embedding function changes
+            logger.info("Checking for existing collections...")
+            collection_name = "pdf_documents"
+            existing_collections = self.client.list_collections()
+            collection_exists = any(c.name == collection_name for c in existing_collections)
+            logger.info(f"Found {len(existing_collections)} collections. Target collection exists: {collection_exists}")
+            
+            if collection_exists:
+                # Get existing collection WITHOUT changing the embedding function
+                logger.info(f"Getting existing collection: {collection_name}")
+                try:
+                    # First try getting the collection without parameters to preserve its state
+                    self.collection = self.client.get_collection(name=collection_name)
+                    logger.info(f"Retrieved existing collection without modifying parameters")
+                    
+                    # Check if collection has documents already
+                    count = self.collection.count()
+                    logger.info(f"Existing collection has {count} documents")
+                    
+                    # Now set the embedding function without modifying the collection
+                    self.collection._embedding_function = embedding_func
+                    logger.info(f"Set embedding function on existing collection")
+                except Exception as e:
+                    logger.error(f"Error getting existing collection: {str(e)}")
+                    # Fallback to get_or_create with explicit embedding function
+                    logger.info(f"Falling back to get_or_create with explicit embedding function")
+                    self.collection = self.client.get_or_create_collection(
+                        name=collection_name,
+                        embedding_function=embedding_func,
+                        metadata={"hnsw:space": "cosine"}
+                    )
+            else:
+                # Create new collection with all parameters
+                logger.info(f"Creating new collection: {collection_name}")
+                self.collection = self.client.create_collection(
+                    name=collection_name,
+                    embedding_function=embedding_func,
+                    metadata={"hnsw:space": "cosine"}
+                )
             
             # Verify collection exists and is accessible
             collection_count = self.collection.count()
