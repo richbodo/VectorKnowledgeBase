@@ -82,6 +82,40 @@ def diagnostics():
                 'prefix': 'None'
             }
     
+    # Add additional fields for template compatibility
+    if 'collection_name' not in debug_info:
+        debug_info['collection_name'] = 'pdf_documents'
+        
+    if 'embedding_count' not in debug_info:
+        debug_info['embedding_count'] = debug_info.get('sqlite_embeddings_count', 0)
+        
+    if 'embedding_dimension' not in debug_info:
+        debug_info['embedding_dimension'] = 1536  # Default for text-embedding-3-small
+        
+    if 'index_size' not in debug_info:
+        # If we have db_size_mb, use that, otherwise 0
+        debug_info['index_size'] = f"{debug_info.get('db_size_mb', 0)} MB"
+        
+    if 'sqlite_tables' not in debug_info:
+        debug_info['sqlite_tables'] = []
+        
+    if 'sqlite_issues' not in debug_info:
+        debug_info['sqlite_issues'] = []
+        
+    # Add embedding model information
+    if 'embedding_model' not in debug_info:
+        debug_info['embedding_model'] = 'text-embedding-3-small'
+        
+    if 'model_dimension' not in debug_info:
+        debug_info['model_dimension'] = 1536
+        
+    # Add default document count type information
+    if 'document_id_count' not in debug_info:
+        debug_info['document_id_count'] = 0
+        
+    if 'test_id_count' not in debug_info:
+        debug_info['test_id_count'] = 0
+    
     # Get more detailed database info
     db_path = debug_info.get('db_path', '')
     db_exists = debug_info.get('db_exists', False)
@@ -138,6 +172,61 @@ def get_debug_info():
             'failed_calls': 0,
             'last_call': 'Never'
         }
+    
+    # Add OpenAI key info for template references
+    if 'openai_key_info' not in debug_info:
+        # Check if OPENAI_API_KEY environment variable exists
+        import os
+        api_key = os.environ.get('OPENAI_API_KEY', '')
+        
+        if api_key:
+            # Only show minimal info for security
+            prefix = api_key[:4] if len(api_key) >= 4 else "****"
+            debug_info['openai_key_info'] = {
+                'status': 'Available',
+                'type': 'API Key',
+                'prefix': prefix
+            }
+        else:
+            debug_info['openai_key_info'] = {
+                'status': 'Missing',
+                'type': 'Unknown',
+                'prefix': 'None'
+            }
+    
+    # Add additional fields for template compatibility
+    if 'collection_name' not in debug_info:
+        debug_info['collection_name'] = 'pdf_documents'
+        
+    if 'embedding_count' not in debug_info:
+        debug_info['embedding_count'] = debug_info.get('sqlite_embeddings_count', 0)
+        
+    if 'embedding_dimension' not in debug_info:
+        debug_info['embedding_dimension'] = 1536  # Default for text-embedding-3-small
+        
+    if 'index_size' not in debug_info:
+        # If we have db_size_mb, use that, otherwise 0
+        debug_info['index_size'] = f"{debug_info.get('db_size_mb', 0)} MB"
+        
+    if 'sqlite_tables' not in debug_info:
+        debug_info['sqlite_tables'] = []
+        
+    if 'sqlite_issues' not in debug_info:
+        debug_info['sqlite_issues'] = []
+        
+    # Add embedding model information
+    if 'embedding_model' not in debug_info:
+        debug_info['embedding_model'] = 'text-embedding-3-small'
+        
+    if 'model_dimension' not in debug_info:
+        debug_info['model_dimension'] = 1536
+        
+    # Add default document count type information
+    if 'document_id_count' not in debug_info:
+        debug_info['document_id_count'] = 0
+        
+    if 'test_id_count' not in debug_info:
+        debug_info['test_id_count'] = 0
     
     return jsonify(debug_info)
 
