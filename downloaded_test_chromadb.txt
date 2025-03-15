@@ -1,0 +1,1 @@
+This is a test for ChromaDB persistence using Replit Object Storage

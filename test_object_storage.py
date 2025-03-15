@@ -27,20 +27,20 @@ try:
         logger.info(f"Object: {obj.object_name}, Size: {obj.size} bytes")
     
     # Try to write a test object
-    test_content = "This is a test object for ChromaDB persistence"
+    test_content = b"This is a test object for ChromaDB persistence"
     test_object_name = "test/chromadb_test.txt"
     
     logger.info(f"Creating test object: {test_object_name}")
-    client.upload_from_string(test_content, test_object_name)
+    client.upload(test_object_name, test_content)
     
     # Verify the object was created
-    if client.exists(test_object_name):
-        logger.info(f"Successfully created test object: {test_object_name}")
+    try:
         # Read it back
-        content = client.download_as_text(test_object_name)
-        logger.info(f"Retrieved content: {content}")
-    else:
-        logger.error(f"Failed to create test object: {test_object_name}")
+        content = client.download(test_object_name)
+        logger.info(f"Successfully created and retrieved test object: {test_object_name}")
+        logger.info(f"Retrieved content: {content.decode('utf-8')}")
+    except Exception as e:
+        logger.error(f"Failed to retrieve test object: {test_object_name}. Error: {str(e)}")
     
     logger.info("Object Storage test completed successfully")
     
