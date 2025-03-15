@@ -114,9 +114,53 @@ class VectorStore:
             # CRITICAL FIX: First check if collection already exists to avoid embedding function changes
             logger.info("Checking for existing collections...")
             collection_name = "pdf_documents"
+            
+            # First try to check directly in the SQLite database
+            try:
+                sqlite_path = os.path.join(abs_db_path, "chroma.sqlite3")
+                if os.path.exists(sqlite_path):
+                    try:
+                        import sqlite3
+                        conn = sqlite3.connect(sqlite_path)
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT COUNT(*) FROM collections WHERE name = ?", (collection_name,))
+                        count = cursor.fetchone()[0]
+                        collection_exists_in_db = count > 0
+                        
+                        if collection_exists_in_db:
+                            logger.info(f"Found collection '{collection_name}' directly in SQLite database!")
+                            cursor.execute("SELECT id FROM collections WHERE name = ?", (collection_name,))
+                            coll_id = cursor.fetchone()[0]
+                            logger.info(f"Collection ID from SQLite: {coll_id}")
+                        conn.close()
+                    except Exception as e:
+                        logger.error(f"Error checking SQLite database: {str(e)}")
+                        collection_exists_in_db = False
+                else:
+                    collection_exists_in_db = False
+            except Exception as e:
+                logger.error(f"Error during SQLite check: {str(e)}")
+                collection_exists_in_db = False
+                
+            # Also check using the client API
+            # COMPATIBILITY FIX: In ChromaDB v0.6.0, list_collections returns collection names directly
             existing_collections = self.client.list_collections()
-            collection_exists = any(c.name == collection_name for c in existing_collections)
-            logger.info(f"Found {len(existing_collections)} collections. Target collection exists: {collection_exists}")
+            logger.info(f"Collections from API: {existing_collections}")
+            
+            # In v0.6.0, each item in the list IS the collection name (not an object with a name property)
+            collection_exists_via_api = collection_name in [c for c in existing_collections]
+            
+            # Collection exists if either check was successful
+            collection_exists = collection_exists_in_db or collection_exists_via_api
+            logger.info(f"Found {len(existing_collections)} collections via API. Target collection exists: {collection_exists} (DB: {collection_exists_in_db}, API: {collection_exists_via_api})")
+            
+            # IMPORTANT: This is a safety measure to ensure we absolutely don't reset the database
+            # If the database exists on disk, but we can't detect the collection in the client API
+            # that's likely a bug in our detection code, not an actual missing collection
+            if collection_exists_in_db and not collection_exists_via_api:
+                logger.warning("CRITICAL DATABASE PROTECTION: Collection exists in SQLite but not in API.")
+                logger.warning("This is likely a detection issue, forcing collection_exists=True to protect data.")
+                collection_exists = True
             
             if collection_exists:
                 # Get existing collection WITHOUT changing the embedding function
