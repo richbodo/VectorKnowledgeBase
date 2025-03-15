@@ -31,30 +31,59 @@ if not VKB_API_KEY:
 import logging
 logger = logging.getLogger(__name__)
 
-# Check environment information
-for env_var in ['REPL_HOME', 'REPL_SLUG', 'REPL_OWNER', 'REPL_ID', 'REPL_IMAGE']:
-    if env_var in os.environ:
-        logger.info(f"{env_var}: {os.environ[env_var]}")
-    else:
-        logger.info(f"{env_var} not set")
+# Log all environment variables to help diagnose persistence issues
+logger.info("==== Environment Variables for Database Persistence ====")
+for env_var, value in os.environ.items():
+    if any(x in env_var.lower() for x in ['repl', 'home', 'path', 'dir', 'root']):
+        logger.info(f"{env_var}: {value}")
 
-# For Replit deployments, we'll use a persistent path based on REPL_SLUG
-# which should remain consistent across deployments
-if os.environ.get('REPL_SLUG'):
-    # We're in Replit environment
-    repl_slug = os.environ.get('REPL_SLUG', '')  # Use empty string as fallback
-    REPL_STORAGE_DIR = os.path.join('/home/runner', repl_slug, 'storage')
-    # Create the storage directory if it doesn't exist
-    os.makedirs(REPL_STORAGE_DIR, exist_ok=True)
-    CHROMA_DB_PATH = os.path.join(REPL_STORAGE_DIR, 'chroma_db')
-    logger.info(f"Using persistent ChromaDB path: {CHROMA_DB_PATH}")
-    logger.info(f"Storage directory exists: {os.path.exists(REPL_STORAGE_DIR)}")
+# Use the most reliable persistent storage location in Replit
+# This path is explicitly designed for persistent data
+PERSISTENT_STORAGE_ROOT = '/home/runner/data'
+logger.info(f"Using persistent storage root: {PERSISTENT_STORAGE_ROOT}")
+
+# Create the persistent directory if it doesn't exist
+os.makedirs(PERSISTENT_STORAGE_ROOT, exist_ok=True)
+logger.info(f"Persistent storage exists: {os.path.exists(PERSISTENT_STORAGE_ROOT)}")
+logger.info(f"Storage permissions: {oct(os.stat(PERSISTENT_STORAGE_ROOT).st_mode)[-3:]}")
+
+# Set the ChromaDB path to this persistent location
+CHROMA_DB_PATH = os.path.join(PERSISTENT_STORAGE_ROOT, 'chroma_db')
+logger.info(f"Using persistent ChromaDB path: {CHROMA_DB_PATH}")
+
+# Check if there's any existing data
+if os.path.exists(CHROMA_DB_PATH):
+    logger.info(f"ChromaDB folder already exists at {CHROMA_DB_PATH}")
+    if os.path.isdir(CHROMA_DB_PATH):
+        contents = os.listdir(CHROMA_DB_PATH)
+        logger.info(f"Contents: {contents}")
 else:
-    # Local development or other environment
-    default_path = 'chroma_db'
-    path_from_env = os.environ.get('CHROMA_DB_PATH')
-    CHROMA_DB_PATH = os.path.abspath(path_from_env if path_from_env else default_path)
-    logger.info(f"Using local ChromaDB path: {CHROMA_DB_PATH}")
+    logger.info(f"ChromaDB folder does not exist yet, will be created")
+
+# Check for previously used paths to help with migration
+old_paths = [
+    'chroma_db',
+    os.path.join(os.getcwd(), 'chroma_db'),
+    '/home/runner/workspace/chroma_db',
+    '/home/runner/workspace/storage/chroma_db'
+]
+
+for path in old_paths:
+    if os.path.exists(path) and os.path.isdir(path):
+        logger.info(f"Found old ChromaDB at: {path}")
+        if os.path.exists(os.path.join(path, 'chroma.sqlite3')):
+            db_size = os.path.getsize(os.path.join(path, 'chroma.sqlite3')) / (1024 * 1024)
+            logger.info(f"SQLite file exists with size: {db_size:.2f} MB")
+            
+            # Optionally migrate data from old location
+            if not os.path.exists(CHROMA_DB_PATH):
+                try:
+                    import shutil
+                    logger.info(f"Migrating data from {path} to {CHROMA_DB_PATH}")
+                    shutil.copytree(path, CHROMA_DB_PATH)
+                    logger.info(f"Migration completed successfully!")
+                except Exception as e:
+                    logger.error(f"Migration failed: {str(e)}")
 
 # API Configuration
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB in bytes
