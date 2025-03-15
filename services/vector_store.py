@@ -143,12 +143,14 @@ class VectorStore:
                 collection_exists_in_db = False
                 
             # Also check using the client API
-            # COMPATIBILITY FIX: In ChromaDB v0.6.0, list_collections returns collection names directly
+            # COMPATIBILITY FIX: In ChromaDB v0.6.0/v0.6.3, list_collections returns collection names directly
             existing_collections = self.client.list_collections()
             logger.info(f"Collections from API: {existing_collections}")
             
-            # In v0.6.0, each item in the list IS the collection name (not an object with a name property)
-            collection_exists_via_api = collection_name in [c for c in existing_collections]
+            # In v0.6.0/v0.6.3, each item in the list IS the collection name directly
+            collection_exists_via_api = collection_name in existing_collections
+            logger.info(f"Collection names from API: {existing_collections}")
+            logger.info(f"Checking if {collection_name} exists in {existing_collections}")
             
             # Collection exists if either check was successful
             collection_exists = collection_exists_in_db or collection_exists_via_api
