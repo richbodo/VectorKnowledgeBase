@@ -121,6 +121,11 @@ def create_app():
                 backup_success, backup_message = chroma_storage.backup_to_object_storage()
                 if backup_success:
                     logger.info(f"ChromaDB backup successful: {backup_message}")
+                    # Update the VectorStore's last_backup_time
+                    from services.vector_store import VectorStore
+                    import time
+                    VectorStore._last_backup_time = time.time()
+                    logger.info(f"Updated VectorStore last_backup_time to {VectorStore._last_backup_time}")
                 else:
                     logger.warning(f"ChromaDB backup issue: {backup_message}")
                 
