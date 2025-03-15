@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAI API Connection Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .diagnostic-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .error {
+            color: #e74c3c;
+            background-color: #fdf5f5;
+            padding: 10px;
+            border-left: 4px solid #e74c3c;
+            margin-bottom: 10px;
+        }
+        .success {
+            color: #27ae60;
+            background-color: #f4fff5;
+            padding: 10px;
+            border-left: 4px solid #27ae60;
+            margin-bottom: 10px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: Consolas, Monaco, 'Andale Mono', monospace;
+            font-size: 14px;
+        }
+        .key-value {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        .key {
+            font-weight: bold;
+            width: 200px;
+            flex-shrink: 0;
+        }
+        .value {
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="diagnostic-header">
+        <h1>OpenAI API Connection Test</h1>
+        <div>
+            <button class="refresh-button" onclick="location.reload()">Refresh</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>API Key Information</h2>
+        {% if diagnostic_info.api_key_info %}
+        <div class="key-value">
+            <div class="key">Starts With:</div>
+            <div class="value">{{ diagnostic_info.api_key_info.starts_with }}</div>
+        </div>
+        <div class="key-value">
+            <div class="key">Ends With:</div>
+            <div class="value">{{ diagnostic_info.api_key_info.ends_with }}</div>
+        </div>
+        <div class="key-value">
+            <div class="key">Length:</div>
+            <div class="value">{{ diagnostic_info.api_key_info.length }}</div>
+        </div>
+        <div class="key-value">
+            <div class="key">Format Valid:</div>
+            <div class="value">{{ diagnostic_info.api_key_info.format_valid }}</div>
+        </div>
+        {% else %}
+        <div class="error">No API key information available.</div>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2>Test Results</h2>
+        {% if diagnostic_info.test_status == 'success' %}
+        <div class="success">
+            <strong>Success!</strong> The embedding was generated successfully.
+        </div>
+        <div class="key-value">
+            <div class="key">Embedding Generated:</div>
+            <div class="value">{{ diagnostic_info.embedding_generated }}</div>
+        </div>
+        <div class="key-value">
+            <div class="key">Embedding Dimension:</div>
+            <div class="value">{{ diagnostic_info.embedding_dimension }}</div>
+        </div>
+        {% else %}
+        <div class="error">
+            <strong>Failed!</strong> The embedding could not be generated.
+        </div>
+        {% endif %}
+    </div>
+
+    {% if diagnostic_info.error_details %}
+    <div class="section">
+        <h2>Error Details</h2>
+        <div class="key-value">
+            <div class="key">Error Type:</div>
+            <div class="value">{{ diagnostic_info.error_details.error_type }}</div>
+        </div>
+        <div class="key-value">
+            <div class="key">Error Message:</div>
+            <div class="value">{{ diagnostic_info.error_details.error_message }}</div>
+        </div>
+        <h3>Traceback</h3>
+        <pre>{{ diagnostic_info.error_details.traceback }}</pre>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h2>Next Steps</h2>
+        {% if diagnostic_info.test_status == 'success' %}
+        <p>The OpenAI API connection is working correctly. You can now use all features that depend on it.</p>
+        <ul>
+            <li><a href="/">Return to Home Page</a></li>
+            <li><a href="/monitoring/database-diagnostic">Check Database Diagnostics</a></li>
+        </ul>
+        {% else %}
+        <p>The OpenAI API connection test failed. Please check the following:</p>
+        <ul>
+            <li>Verify your OpenAI API key is correctly set in the environment variables</li>
+            <li>Check if your API key has access to the embedding models</li>
+            <li>Ensure you have billing set up in your OpenAI account</li>
+            <li>Try visiting <a href="https://platform.openai.com/docs" target="_blank">OpenAI's documentation</a> for more information</li>
+        </ul>
+        {% endif %}
+    </div>
+</body>
+</html>
