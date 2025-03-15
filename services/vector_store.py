@@ -343,17 +343,25 @@ class VectorStore:
                 if similarity < similarity_threshold:
                     continue
 
-                doc_id = metadata["document_id"]
+                # Look for both document_id and test_id
+                doc_id = None
+                if "document_id" in metadata:
+                    doc_id = metadata["document_id"]
+                elif "test_id" in metadata:
+                    doc_id = metadata["test_id"]
+                else:
+                    # If no ID is found, skip this result
+                    continue
 
                 result = VectorSearchResult(
                     document_id=doc_id,
                     content=chunk_text,
                     similarity_score=similarity,
                     metadata={
-                        "filename": metadata["filename"],
-                        "chunk_index": metadata["chunk_index"],
-                        "total_chunks": metadata["total_chunks"],
-                        "content_type": metadata["content_type"]
+                        "filename": metadata.get("filename", "Unknown"),
+                        "chunk_index": metadata.get("chunk_index", 0),
+                        "total_chunks": metadata.get("total_chunks", 1),
+                        "content_type": metadata.get("content_type", "text/plain")
                     }
                 )
 
@@ -470,24 +478,26 @@ class VectorStore:
                                 logger.info(f"embedding_metadata columns: {table_columns}")
                                 
                                 # In v0.6.3, metadata is stored in multiple columns with specific types
-                                # Let's query the table to see what we have
-                                cursor.execute("SELECT embedding_id, key, str_value FROM embedding_metadata WHERE key='document_id' LIMIT 100")
+                                # Let's query the table to see what we have - look for both document_id and test_id
+                                cursor.execute("SELECT embedding_id, key, str_value FROM embedding_metadata WHERE key='document_id' OR key='test_id' LIMIT 100")
                                 results = cursor.fetchall()
-                                logger.info(f"Found {len(results)} document_id entries in embedding_metadata")
+                                logger.info(f"Found {len(results)} document_id/test_id entries in embedding_metadata")
                                 
                                 # Process the results
                                 for row in results:
                                     try:
                                         embedding_id, key, value = row
                                         doc_id = value
-                                        logger.info(f"Found document ID from SQLite: {doc_id}")
+                                        # Store whether this is a document_id or test_id
+                                        id_type = key
+                                        logger.info(f"Found {id_type} from SQLite: {doc_id}")
                                         
                                         # Now get other metadata for this embedding
-                                        cursor.execute("SELECT key, str_value FROM embedding_metadata WHERE embedding_id=? AND key IN ('filename', 'content_type', 'size', 'total_chunks')", (embedding_id,))
+                                        cursor.execute("SELECT key, str_value FROM embedding_metadata WHERE embedding_id=? AND key IN ('filename', 'content_type', 'size', 'total_chunks', 'source', 'chroma:document')", (embedding_id,))
                                         metadata_values = cursor.fetchall()
                                         
                                         # Build metadata dict
-                                        metadata = {"document_id": doc_id}
+                                        metadata = {id_type: doc_id}
                                         for meta_key, meta_value in metadata_values:
                                             metadata[meta_key] = meta_value
                                             
@@ -552,10 +562,14 @@ class VectorStore:
                         
                         # Extract unique document IDs from metadata
                         for i, metadata in enumerate(raw_data['metadatas']):
-                            if not metadata or 'document_id' not in metadata:
+                            # Look for both document_id and test_id
+                            doc_id = None
+                            if metadata and 'document_id' in metadata:
+                                doc_id = metadata['document_id']
+                            elif metadata and 'test_id' in metadata:
+                                doc_id = metadata['test_id']
+                            else:
                                 continue
-                                
-                            doc_id = metadata['document_id']
                             if doc_id not in all_docs:
                                 logger.info(f"Found document ID in metadata: {doc_id}")
                                 all_docs[doc_id] = {
