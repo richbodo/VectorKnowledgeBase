@@ -444,14 +444,34 @@ class VectorStore:
             else:
                 logger.warning(f"ChromaDB directory does not exist: {CHROMA_DB_PATH}")
             
-            # Get document count from ChromaDB
-            count = self.collection.count()
-            logger.info(f"ChromaDB collection count: {count}")
+            # Get document count from ChromaDB API
+            api_count = self.collection.count()
+            logger.info(f"ChromaDB API collection count: {api_count}")
             
-            # If there are no documents, we're done
-            if count == 0:
-                logger.warning("No documents found in ChromaDB")
-                return
+            # Also check SQLite directly for document count
+            try:
+                # Count unique document IDs by querying the SQLite database directly
+                sqlite_path = os.path.join(CHROMA_DB_PATH, "chroma.sqlite3")
+                if os.path.exists(sqlite_path):
+                    conn = sqlite3.connect(sqlite_path)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(DISTINCT embedding_id) FROM embedding_metadata WHERE key='document_id' OR key='test_id'")
+                    unique_doc_count = cursor.fetchone()[0]
+                    logger.info(f"Unique document/test IDs in SQLite: {unique_doc_count}")
+                    conn.close()
+                    
+                    # If there are documents in SQLite but API reports 0, we will still proceed
+                    if unique_doc_count > 0:
+                        logger.info(f"Found {unique_doc_count} documents in SQLite, will continue loading")
+                    elif api_count == 0:
+                        logger.warning("No documents found in both ChromaDB API and SQLite")
+                        return
+            except Exception as count_e:
+                logger.error(f"Error counting documents in SQLite: {str(count_e)}")
+                # If we can't check SQLite, rely on API count
+                if api_count == 0:
+                    logger.warning("No documents found in ChromaDB API (SQLite check failed)")
+                    return
                 
             # Load document IDs from ChromaDB
             try:
@@ -633,6 +653,8 @@ class VectorStore:
             db_exists = os.path.exists(CHROMA_DB_PATH)
             db_contents = None
             db_size_mb = 0
+            embeddings_count = 0
+            unique_doc_count = 0
             
             if db_exists and os.path.isdir(CHROMA_DB_PATH):
                 try:
@@ -640,12 +662,31 @@ class VectorStore:
                     sqlite_path = os.path.join(CHROMA_DB_PATH, "chroma.sqlite3")
                     if os.path.exists(sqlite_path):
                         db_size_mb = os.path.getsize(sqlite_path) / (1024 * 1024)
+                        
+                        # Get additional counts from SQLite
+                        try:
+                            conn = sqlite3.connect(sqlite_path)
+                            cursor = conn.cursor()
+                            
+                            # Count embeddings
+                            cursor.execute("SELECT COUNT(*) FROM embeddings")
+                            embeddings_count = cursor.fetchone()[0]
+                            
+                            # Count unique document IDs
+                            cursor.execute("SELECT COUNT(DISTINCT embedding_id) FROM embedding_metadata WHERE key='document_id' OR key='test_id'")
+                            unique_doc_count = cursor.fetchone()[0]
+                            
+                            conn.close()
+                        except Exception as e:
+                            logger.error(f"Error getting SQLite counts: {str(e)}")
                 except Exception:
                     pass
             
             return {
                 "document_count": doc_count,
                 "collection_count": collection_count,
+                "sqlite_embeddings_count": embeddings_count,
+                "sqlite_unique_doc_count": unique_doc_count,
                 "document_ids_sample": doc_ids,
                 "db_path": CHROMA_DB_PATH,
                 "db_exists": db_exists,
