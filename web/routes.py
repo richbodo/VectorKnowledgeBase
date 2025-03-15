@@ -43,6 +43,12 @@ def diagnostics():
     vector_store = VectorStore.get_instance()
     debug_info = vector_store.get_debug_info()
     
+    # Log the structure of debug_info for debugging
+    import logging
+    import json
+    logger = logging.getLogger(__name__)
+    logger.info(f"DEBUG INFO STRUCTURE: {json.dumps(debug_info, default=str)}")
+    
     # Fix for template compatibility - move document_details to documents
     if 'document_details' in debug_info and 'documents' not in debug_info:
         debug_info['documents'] = debug_info['document_details']
