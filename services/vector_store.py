@@ -255,11 +255,48 @@ class VectorStore:
 
     def _load_state(self):
         try:
-            logger.info("Loading state from ChromaDB...")
+            logger.info(f"Loading state from ChromaDB at {CHROMA_DB_PATH}...")
             
             # Get total document count first
             count = self.collection.count()
             logger.info(f"ChromaDB collection count: {count}")
+            
+            # Log storage information to help diagnose persistence issues
+            if os.path.exists(CHROMA_DB_PATH):
+                logger.info(f"ChromaDB directory exists at: {CHROMA_DB_PATH}")
+                try:
+                    contents = os.listdir(CHROMA_DB_PATH)
+                    logger.info(f"Directory contents: {contents}")
+                    
+                    # Check if SQLite file exists
+                    sqlite_path = os.path.join(CHROMA_DB_PATH, "chroma.sqlite3")
+                    if os.path.exists(sqlite_path):
+                        size_mb = os.path.getsize(sqlite_path) / (1024 * 1024)
+                        logger.info(f"SQLite file exists with size: {size_mb:.2f} MB")
+                        
+                        # Check SQLite data
+                        try:
+                            import sqlite3
+                            conn = sqlite3.connect(sqlite_path)
+                            cursor = conn.cursor()
+                            
+                            # Check for embeddings
+                            cursor.execute("SELECT COUNT(*) FROM embeddings")
+                            embeddings_count = cursor.fetchone()[0]
+                            logger.info(f"SQLite embeddings count: {embeddings_count}")
+                            
+                            # Check collections
+                            cursor.execute("SELECT * FROM collections LIMIT 5")
+                            collections = cursor.fetchall()
+                            logger.info(f"Collections in SQLite: {collections}")
+                            
+                            conn.close()
+                        except Exception as sql_e:
+                            logger.error(f"Error checking SQLite data: {str(sql_e)}")
+                except Exception as dir_e:
+                    logger.error(f"Error checking directory: {str(dir_e)}")
+            else:
+                logger.warning(f"ChromaDB directory does not exist: {CHROMA_DB_PATH}")
             
             if count == 0:
                 logger.warning("No documents found in ChromaDB (count = 0)")
@@ -268,31 +305,73 @@ class VectorStore:
             # CRITICAL: We need to extract unique document IDs from the metadata
             # Document IDs are stored in each chunk's metadata as 'document_id'
             try:
-                # Get all document IDs by querying metadata directly
+                # Direct approach - query for any chunks and use the document_id field
+                logger.info("Querying for all documents...")
                 all_docs = {}
                 
-                # Use pagination to handle large collections
-                batch_size = 1000
-                for offset in range(0, count, batch_size):
-                    raw_data = self.collection.get(limit=batch_size, offset=offset)
+                # Collect all data without filters first
+                try:
+                    raw_data = self.collection.get()
+                    logger.info(f"Raw data keys: {raw_data.keys() if raw_data else 'None'}")
+                    logger.info(f"Raw data ids count: {len(raw_data['ids']) if raw_data and 'ids' in raw_data else 0}")
                     
-                    if not raw_data or not raw_data.get('metadatas'):
-                        continue
+                    if raw_data and 'metadatas' in raw_data and raw_data['metadatas']:
+                        for i, metadata in enumerate(raw_data['metadatas']):
+                            if not metadata or 'document_id' not in metadata:
+                                continue
+                                
+                            doc_id = metadata['document_id']
+                            if doc_id not in all_docs:
+                                logger.info(f"Found document ID in metadata: {doc_id}")
+                                all_docs[doc_id] = {
+                                    "filename": metadata.get("filename", "Unknown"),
+                                    "content_type": metadata.get("content_type", "Unknown"),
+                                    "size": metadata.get("size", 0),
+                                    "total_chunks": metadata.get("total_chunks", 0)
+                                }
                     
-                    # Extract unique document IDs and metadata from chunks
-                    for i, metadata in enumerate(raw_data['metadatas']):
-                        if not metadata or 'document_id' not in metadata:
-                            continue
+                    logger.info(f"Found {len(all_docs)} document IDs in metadata")
+                    
+                    # Check IDs for document info if metadata approach didn't work
+                    if not all_docs and 'ids' in raw_data and raw_data['ids']:
+                        logger.info("No document IDs found in metadata, checking chunk IDs...")
+                        for chunk_id in raw_data['ids']:
+                            if '_chunk_' in chunk_id:
+                                doc_id = chunk_id.split('_chunk_')[0]
+                                if doc_id not in all_docs:
+                                    logger.info(f"Extracted document ID from chunk ID: {doc_id}")
+                                    all_docs[doc_id] = {"recovered": True}
+                        
+                        logger.info(f"Found {len(all_docs)} document IDs from chunk IDs")
+                        
+                except Exception as raw_e:
+                    logger.error(f"Error getting raw data: {str(raw_e)}", exc_info=True)
+                
+                # If we still don't have documents, try direct query with limit/offset
+                if not all_docs:
+                    logger.info("Using pagination to find documents...")
+                    batch_size = 10
+                    for offset in range(0, max(count, 100), batch_size):
+                        try:
+                            logger.info(f"Querying batch with offset {offset}, limit {batch_size}")
+                            batch_data = self.collection.get(limit=batch_size, offset=offset)
                             
-                        doc_id = metadata['document_id']
-                        if doc_id not in all_docs:
-                            # Create document entry with minimal info
-                            all_docs[doc_id] = {
-                                "filename": metadata.get("filename", "Unknown"),
-                                "content_type": metadata.get("content_type", "Unknown"),
-                                "size": metadata.get("size", 0),
-                                "total_chunks": metadata.get("total_chunks", 0)
-                            }
+                            if not batch_data or 'metadatas' not in batch_data or not batch_data['metadatas']:
+                                logger.info(f"No valid data in batch at offset {offset}")
+                                continue
+                            
+                            # Process this batch
+                            for i, metadata in enumerate(batch_data['metadatas']):
+                                if metadata and 'document_id' in metadata:
+                                    doc_id = metadata['document_id']
+                                    if doc_id not in all_docs:
+                                        logger.info(f"Found document ID in batch: {doc_id}")
+                                        all_docs[doc_id] = {
+                                            "filename": metadata.get("filename", "Unknown"),
+                                            "content_type": metadata.get("content_type", "Unknown")
+                                        }
+                        except Exception as batch_e:
+                            logger.error(f"Error processing batch at offset {offset}: {str(batch_e)}")
                 
                 # Now populate the documents dictionary with reconstructed documents
                 for doc_id, doc_info in all_docs.items():
@@ -303,36 +382,43 @@ class VectorStore:
                     )
                 
                 logger.info(f"Loaded {len(self.documents)} unique documents from ChromaDB")
-                logger.info(f"Document IDs: {list(self.documents.keys())[:5]}...")
+                if self.documents:
+                    logger.info(f"Document IDs: {list(self.documents.keys())[:5]}...")
                 
             except Exception as inner_e:
                 logger.error(f"Error retrieving document IDs: {str(inner_e)}", exc_info=True)
-                # Try fallback approach using the first chunk of each document
+                logger.info("Using alternative direct access to find documents...")
+                
+                # Try a complete alternative approach - get embeddings directly from sqlite
                 try:
-                    logger.info("Attempting fallback document loading approach...")
-                    # Get all unique IDs from collection
-                    raw_data = self.collection.get(limit=count)
-                    unique_doc_ids = set()
-                    
-                    # Extract document IDs from chunk IDs (assuming format: document_id_chunk_N)
-                    for chunk_id in raw_data['ids']:
-                        if '_chunk_' in chunk_id:
-                            doc_id = chunk_id.split('_chunk_')[0]
-                            unique_doc_ids.add(doc_id)
-                    
-                    logger.info(f"Found {len(unique_doc_ids)} unique document IDs from chunk IDs")
-                    
-                    # Create minimal document objects
-                    for doc_id in unique_doc_ids:
-                        self.documents[doc_id] = Document(
-                            id=doc_id,
-                            content="",
-                            metadata={"recovered": True}
-                        )
-                    
-                    logger.info(f"Recovered {len(self.documents)} documents via fallback method")
-                except Exception as fallback_e:
-                    logger.error(f"Fallback document loading failed: {str(fallback_e)}", exc_info=True)
+                    if os.path.exists(os.path.join(CHROMA_DB_PATH, "chroma.sqlite3")):
+                        import sqlite3
+                        conn = sqlite3.connect(os.path.join(CHROMA_DB_PATH, "chroma.sqlite3"))
+                        cursor = conn.cursor()
+                        
+                        # Get document IDs from sqlite directly
+                        cursor.execute("""
+                            SELECT DISTINCT json_extract(m.metadata, '$.document_id') 
+                            FROM embedding_metadata m
+                            WHERE json_extract(m.metadata, '$.document_id') IS NOT NULL
+                        """)
+                        
+                        doc_ids = [row[0] for row in cursor.fetchall()]
+                        logger.info(f"Found {len(doc_ids)} document IDs directly from SQLite")
+                        
+                        # Create documents from these IDs
+                        for doc_id in doc_ids:
+                            if doc_id and doc_id not in self.documents:
+                                self.documents[doc_id] = Document(
+                                    id=doc_id,
+                                    content="",
+                                    metadata={"recovered_from_sqlite": True}
+                                )
+                        
+                        conn.close()
+                        logger.info(f"Recovered {len(self.documents)} documents from SQLite")
+                except Exception as sql_e:
+                    logger.error(f"SQLite direct access failed: {str(sql_e)}", exc_info=True)
                 
         except Exception as e:
             logger.error(f"Error during state loading: {str(e)}", exc_info=True)
