@@ -1,7 +1,14 @@
 import logging
 import os
-from flask import Blueprint, jsonify
+import traceback
+import sqlite3
+import json
+import datetime
+from flask import Blueprint, jsonify, render_template, request
 import openai
+from services.embedding_service import EmbeddingService
+from services.vector_store import VectorStore
+from config import CHROMA_DB_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -76,3 +83,122 @@ def test_openai_connection():
     except Exception as e:
         logger.error(f"Error in OpenAI test endpoint: {str(e)}", exc_info=True)
         return render_template('error.html', error="OpenAI test failed"), 500
+
+@bp.route('/database-diagnostic', methods=['GET'])
+def database_diagnostic():
+    """Detailed database diagnostic endpoint that analyzes ChromaDB state"""
+    try:
+        logger.info("Starting detailed database diagnostics")
+        result = {
+            "timestamp": f"{datetime.datetime.now().isoformat()}",
+            "environment": "production" if os.environ.get("REPL_DEPLOYMENT") else "development",
+            "db_information": {},
+            "collection_information": {},
+            "document_information": {},
+            "sqlite_analysis": {},
+            "errors": []
+        }
+        
+        # Get VectorStore instance debug info
+        try:
+            vector_store = VectorStore.get_instance()
+            result["vector_store_info"] = vector_store.get_debug_info()
+        except Exception as e:
+            error_msg = f"Error getting VectorStore debug info: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            result["errors"].append(error_msg)
+        
+        # Check database directory
+        try:
+            result["db_information"]["db_path"] = CHROMA_DB_PATH
+            result["db_information"]["exists"] = os.path.exists(CHROMA_DB_PATH)
+            result["db_information"]["is_dir"] = os.path.isdir(CHROMA_DB_PATH) if result["db_information"]["exists"] else False
+            
+            if result["db_information"]["is_dir"]:
+                result["db_information"]["contents"] = os.listdir(CHROMA_DB_PATH)
+            else:
+                result["db_information"]["contents"] = []
+                
+            # Check SQLite file
+            sqlite_path = os.path.join(CHROMA_DB_PATH, "chroma.sqlite3")
+            result["db_information"]["sqlite_exists"] = os.path.exists(sqlite_path)
+            
+            if result["db_information"]["sqlite_exists"]:
+                result["db_information"]["sqlite_size_mb"] = round(os.path.getsize(sqlite_path) / (1024 * 1024), 2)
+                
+                # Analyze SQLite database
+                conn = sqlite3.connect(sqlite_path)
+                cursor = conn.cursor()
+                
+                # Get all tables
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = cursor.fetchall()
+                result["sqlite_analysis"]["tables"] = [t[0] for t in tables]
+                
+                # Check collections
+                cursor.execute("SELECT id, name, dimension, tenant_id, metadata FROM collections")
+                collections = cursor.fetchall()
+                result["sqlite_analysis"]["collections"] = []
+                
+                for collection in collections:
+                    coll_id, name, dimension, tenant_id, metadata = collection
+                    collection_info = {
+                        "id": coll_id,
+                        "name": name,
+                        "dimension": dimension,
+                        "tenant_id": tenant_id,
+                        "metadata": metadata
+                    }
+                    result["sqlite_analysis"]["collections"].append(collection_info)
+                
+                # Count embeddings
+                cursor.execute("SELECT COUNT(*) FROM embeddings")
+                embedding_count = cursor.fetchone()[0]
+                result["sqlite_analysis"]["embedding_count"] = embedding_count
+                
+                # Count document IDs
+                cursor.execute("SELECT COUNT(DISTINCT id) FROM embedding_metadata WHERE key='document_id' OR key='test_id'")
+                doc_id_count = cursor.fetchone()[0]
+                result["sqlite_analysis"]["doc_id_count"] = doc_id_count
+                
+                # Sample document IDs
+                cursor.execute("SELECT id, key, string_value FROM embedding_metadata WHERE key='document_id' OR key='test_id' LIMIT 10")
+                doc_ids = cursor.fetchall()
+                result["sqlite_analysis"]["doc_id_samples"] = [
+                    {"embedding_id": d[0], "key_type": d[1], "value": d[2]} for d in doc_ids
+                ]
+                
+                # Get example metadata for a document
+                if doc_ids:
+                    first_doc = doc_ids[0]
+                    cursor.execute("SELECT id, key, string_value FROM embedding_metadata WHERE id=?", (first_doc[0],))
+                    metadata_rows = cursor.fetchall()
+                    result["sqlite_analysis"]["example_metadata"] = [
+                        {"id": row[0], "key": row[1], "value": row[2]} for row in metadata_rows
+                    ]
+                
+                conn.close()
+                
+        except Exception as e:
+            error_msg = f"Error analyzing database: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            result["errors"].append(error_msg)
+        
+        # Option to output raw or formatted
+        output_format = request.args.get('format', 'html')
+        if output_format == 'json':
+            return jsonify(result)
+        else:
+            # Format the JSON for readability in HTML
+            formatted_json = json.dumps(result, indent=2)
+            return render_template('monitoring/database_diagnostic.html', 
+                                  diagnostic_data=result,
+                                  formatted_json=formatted_json)
+    
+    except Exception as e:
+        logger.error(f"Error in database diagnostic endpoint: {str(e)}", exc_info=True)
+        return jsonify({
+            "status": "error",
+            "message": f"Database diagnostic failed: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
