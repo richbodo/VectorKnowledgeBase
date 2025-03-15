@@ -161,6 +161,29 @@ class VectorStore:
                 logger.warning("CRITICAL DATABASE PROTECTION: Collection exists in SQLite but not in API.")
                 logger.warning("This is likely a detection issue, forcing collection_exists=True to protect data.")
                 collection_exists = True
+                
+            # When using ChromaDB v0.6.0 with existing data, we need to use get_collection
+            # or get_or_create_collection, but avoid create_collection which would reset data
+            if os.path.exists(os.path.join(abs_db_path, "chroma.sqlite3")):
+                logger.info("Database file exists, treating as existing collection")
+                # Log the count of embeddings in the database to verify there's data there
+                try:
+                    conn = sqlite3.connect(os.path.join(abs_db_path, "chroma.sqlite3"))
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM embeddings")
+                    embeddings_count = cursor.fetchone()[0]
+                    logger.info(f"Database has {embeddings_count} embeddings")
+                    
+                    # If embeddings exist, prefer treating the collection as existing
+                    if embeddings_count > 0:
+                        logger.info("Found embeddings in database, forcing collection_exists=True to protect data")
+                        collection_exists = True
+                        
+                    conn.close()
+                except Exception as e:
+                    logger.error(f"Error checking embeddings count: {str(e)}")
+                    # Default to safest option
+                    collection_exists = True
             
             if collection_exists:
                 # Get existing collection WITHOUT changing the embedding function
@@ -415,7 +438,54 @@ class VectorStore:
                 logger.info("Loading document data from ChromaDB...")
                 all_docs = {}
                 
-                # Get all data from the collection
+                # CRITICAL FIX: Check document IDs in SQLite directly
+                try:
+                    sqlite_path = os.path.join(CHROMA_DB_PATH, "chroma.sqlite3")
+                    if os.path.exists(sqlite_path):
+                        try:
+                            conn = sqlite3.connect(sqlite_path)
+                            cursor = conn.cursor()
+                            
+                            # First check if the embeddings_metadata table exists
+                            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='embeddings_metadata'")
+                            if cursor.fetchone():
+                                logger.info("embeddings_metadata table exists, will check for document IDs")
+                                # Use embeddings_metadata to find document IDs
+                                cursor.execute("SELECT DISTINCT metadata FROM embeddings_metadata WHERE metadata LIKE '%document_id%' LIMIT 100")
+                                results = cursor.fetchall()
+                                logger.info(f"Found {len(results)} embeddings with metadata")
+                                
+                                import json
+                                for row in results:
+                                    try:
+                                        metadata = json.loads(row[0])
+                                        if 'document_id' in metadata:
+                                            doc_id = metadata['document_id']
+                                            logger.info(f"Found document ID from SQLite: {doc_id}")
+                                            if doc_id not in all_docs:
+                                                all_docs[doc_id] = {
+                                                    "filename": metadata.get("filename", "Unknown"),
+                                                    "content_type": metadata.get("content_type", "Unknown"),
+                                                    "size": metadata.get("size", 0),
+                                                    "total_chunks": metadata.get("total_chunks", 0),
+                                                    "source": "sqlite_metadata"
+                                                }
+                                    except:
+                                        continue
+                            else:
+                                logger.warning("embeddings_metadata table does not exist, checking raw embeddings")
+                                
+                            conn.close()
+                        except Exception as sql_err:
+                            logger.error(f"Error querying SQLite: {str(sql_err)}")
+                    
+                    # If we found documents from SQLite, log them
+                    if all_docs:
+                        logger.info(f"Recovered {len(all_docs)} document IDs directly from SQLite")
+                except Exception as sqlite_err:
+                    logger.error(f"Error checking SQLite for document IDs: {str(sqlite_err)}")
+                
+                # Also try the normal collection API method
                 try:
                     # Get all data without filters
                     raw_data = self.collection.get()
@@ -435,7 +505,8 @@ class VectorStore:
                                     "filename": metadata.get("filename", "Unknown"),
                                     "content_type": metadata.get("content_type", "Unknown"),
                                     "size": metadata.get("size", 0),
-                                    "total_chunks": metadata.get("total_chunks", 0)
+                                    "total_chunks": metadata.get("total_chunks", 0),
+                                    "source": "api_metadata" 
                                 }
                     
                     logger.info(f"Found {len(all_docs)} unique document IDs in ChromaDB metadata")
