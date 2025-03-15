@@ -1,262 +1,185 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Database Diagnostic</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1, h2, h3 {
-            color: #2c3e50;
-        }
-        .diagnostic-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        .section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 5px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .error {
-            color: #e74c3c;
-            background-color: #fdf5f5;
-            padding: 10px;
-            border-left: 4px solid #e74c3c;
-            margin-bottom: 10px;
-        }
-        .success {
-            color: #27ae60;
-            background-color: #f4fff5;
-            padding: 10px;
-            border-left: 4px solid #27ae60;
-            margin-bottom: 10px;
-        }
-        pre {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-            font-family: Consolas, Monaco, 'Andale Mono', monospace;
-            font-size: 14px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-        }
-        tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-        .tab-buttons {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .tab-button {
-            padding: 10px 15px;
-            background-color: #f8f9fa;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .tab-button.active {
-            background-color: #4a69bd;
-            color: white;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .refresh-button {
-            padding: 10px 15px;
-            background-color: #4a69bd;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .key-value {
-            display: flex;
-            margin-bottom: 8px;
-        }
-        .key {
-            font-weight: bold;
-            width: 200px;
-            flex-shrink: 0;
-        }
-        .value {
-            flex-grow: 1;
-        }
-    </style>
-</head>
-<body>
-    <div class="diagnostic-header">
-        <h1>ChromaDB Database Diagnostic</h1>
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">ChromaDB Database Diagnostic</h1>
         <div>
-            <span id="environment" class="environment">
+            <span class="badge bg-secondary me-2">
                 Environment: {{ diagnostic_data.environment }}
             </span>
-            <span id="timestamp" class="timestamp">
+            <span class="badge bg-secondary">
                 Time: {{ diagnostic_data.timestamp }}
             </span>
         </div>
     </div>
 
-    <div class="tab-buttons">
-        <button class="tab-button active" onclick="showTab('summary')">Summary</button>
-        <button class="tab-button" onclick="showTab('sqlite')">SQLite Analysis</button>
-        <button class="tab-button" onclick="showTab('documents')">Documents</button>
-        <button class="tab-button" onclick="showTab('raw')">Raw JSON</button>
-        <a href="?format=json" target="_blank" class="tab-button">Download JSON</a>
-        <button class="refresh-button" onclick="location.reload()">Refresh</button>
+    <div class="d-flex justify-content-between mb-4">
+        <ul class="nav nav-tabs" id="dbTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab" aria-controls="summary" aria-selected="true">Summary</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sqlite-tab" data-bs-toggle="tab" data-bs-target="#sqlite" type="button" role="tab" aria-controls="sqlite" aria-selected="false">SQLite Analysis</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab" aria-controls="documents" aria-selected="false">Documents</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="raw-tab" data-bs-toggle="tab" data-bs-target="#raw" type="button" role="tab" aria-controls="raw" aria-selected="false">Raw JSON</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" href="?format=json" target="_blank">Download JSON</a>
+            </li>
+        </ul>
+        <div>
+            <button class="btn btn-primary" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
     </div>
 
-    <div id="summary" class="tab-content active">
-        <div class="section">
-            <h2>Vector Store Summary</h2>
-            {% if diagnostic_data.vector_store_info %}
-            <div class="key-value">
-                <div class="key">Documents in Memory:</div>
-                <div class="value">{{ diagnostic_data.vector_store_info.document_count }}</div>
+    <div class="tab-content" id="dbTabsContent">
+        <div class="tab-pane fade show active" id="summary" role="tabpanel" aria-labelledby="summary-tab">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Vector Store Summary</h2>
+                </div>
+                <div class="card-body">
+                    {% if diagnostic_data.vector_store_info %}
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Documents in Memory:</div>
+                        <div class="col-md-9">{{ diagnostic_data.vector_store_info.document_count }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Collection Count:</div>
+                        <div class="col-md-9">{{ diagnostic_data.vector_store_info.collection_count }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">SQLite Embeddings:</div>
+                        <div class="col-md-9">{{ diagnostic_data.vector_store_info.sqlite_embeddings_count }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Unique Document IDs:</div>
+                        <div class="col-md-9">{{ diagnostic_data.vector_store_info.sqlite_unique_doc_count }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Database Path:</div>
+                        <div class="col-md-9">{{ diagnostic_data.vector_store_info.db_path }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Database Size:</div>
+                        <div class="col-md-9">{{ diagnostic_data.vector_store_info.db_size_mb }} MB</div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger">
+                        No vector store information available.
+                    </div>
+                    {% endif %}
+                </div>
             </div>
-            <div class="key-value">
-                <div class="key">Collection Count:</div>
-                <div class="value">{{ diagnostic_data.vector_store_info.collection_count }}</div>
-            </div>
-            <div class="key-value">
-                <div class="key">SQLite Embeddings:</div>
-                <div class="value">{{ diagnostic_data.vector_store_info.sqlite_embeddings_count }}</div>
-            </div>
-            <div class="key-value">
-                <div class="key">Unique Document IDs:</div>
-                <div class="value">{{ diagnostic_data.vector_store_info.sqlite_unique_doc_count }}</div>
-            </div>
-            <div class="key-value">
-                <div class="key">Database Path:</div>
-                <div class="value">{{ diagnostic_data.vector_store_info.db_path }}</div>
-            </div>
-            <div class="key-value">
-                <div class="key">Database Size:</div>
-                <div class="value">{{ diagnostic_data.vector_store_info.db_size_mb }} MB</div>
-            </div>
-            {% else %}
-            <div class="error">
-                No vector store information available.
-            </div>
-            {% endif %}
-        </div>
 
-        <div class="section">
-            <h2>Database Information</h2>
-            {% if diagnostic_data.db_information %}
-            <div class="key-value">
-                <div class="key">Database Path:</div>
-                <div class="value">{{ diagnostic_data.db_information.db_path }}</div>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Database Information</h2>
+                </div>
+                <div class="card-body">
+                    {% if diagnostic_data.db_information %}
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Database Path:</div>
+                        <div class="col-md-9">{{ diagnostic_data.db_information.db_path }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Database Exists:</div>
+                        <div class="col-md-9">{{ diagnostic_data.db_information.exists }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Is Directory:</div>
+                        <div class="col-md-9">{{ diagnostic_data.db_information.is_dir }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">SQLite Exists:</div>
+                        <div class="col-md-9">{{ diagnostic_data.db_information.sqlite_exists }}</div>
+                    </div>
+                    {% if diagnostic_data.db_information.sqlite_exists %}
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">SQLite Size:</div>
+                        <div class="col-md-9">{{ diagnostic_data.db_information.sqlite_size_mb }} MB</div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="alert alert-danger">
+                        No database information available.
+                    </div>
+                    {% endif %}
+                </div>
             </div>
-            <div class="key-value">
-                <div class="key">Database Exists:</div>
-                <div class="value">{{ diagnostic_data.db_information.exists }}</div>
-            </div>
-            <div class="key-value">
-                <div class="key">Is Directory:</div>
-                <div class="value">{{ diagnostic_data.db_information.is_dir }}</div>
-            </div>
-            <div class="key-value">
-                <div class="key">SQLite Exists:</div>
-                <div class="value">{{ diagnostic_data.db_information.sqlite_exists }}</div>
-            </div>
-            {% if diagnostic_data.db_information.sqlite_exists %}
-            <div class="key-value">
-                <div class="key">SQLite Size:</div>
-                <div class="value">{{ diagnostic_data.db_information.sqlite_size_mb }} MB</div>
-            </div>
-            {% endif %}
-            {% else %}
-            <div class="error">
-                No database information available.
-            </div>
-            {% endif %}
-        </div>
 
-        {% if diagnostic_data.errors %}
-        <div class="section">
-            <h2>Errors</h2>
-            {% for error in diagnostic_data.errors %}
-            <div class="error">{{ error }}</div>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </div>
-
-    <div id="sqlite" class="tab-content">
-        <div class="section">
-            <h2>Tables</h2>
-            {% if diagnostic_data.sqlite_analysis.tables %}
-            <ul>
-                {% for table in diagnostic_data.sqlite_analysis.tables %}
-                <li>{{ table }}</li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <div class="error">No table information available.</div>
-            {% endif %}
-        </div>
-
-        <div class="section">
-            <h2>Collections</h2>
-            {% if diagnostic_data.sqlite_analysis.collections %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Dimension</th>
-                        <th>Tenant ID</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for collection in diagnostic_data.sqlite_analysis.collections %}
-                    <tr>
-                        <td>{{ collection.id }}</td>
-                        <td>{{ collection.name }}</td>
-                        <td>{{ collection.dimension }}</td>
-                        <td>{{ collection.tenant_id }}</td>
-                    </tr>
+            {% if diagnostic_data.errors %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Errors</h2>
+                </div>
+                <div class="card-body">
+                    {% for error in diagnostic_data.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
                     {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="error">No collection information available.</div>
+                </div>
+            </div>
             {% endif %}
         </div>
+
+        <div class="tab-pane fade" id="sqlite" role="tabpanel" aria-labelledby="sqlite-tab">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Tables</h2>
+                </div>
+                <div class="card-body">
+                    {% if diagnostic_data.sqlite_analysis.tables %}
+                    <ul class="list-group">
+                        {% for table in diagnostic_data.sqlite_analysis.tables %}
+                        <li class="list-group-item">{{ table }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="alert alert-danger">No table information available.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Collections</h2>
+                </div>
+                <div class="card-body">
+                    {% if diagnostic_data.sqlite_analysis.collections %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Dimension</th>
+                                    <th>Tenant ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for collection in diagnostic_data.sqlite_analysis.collections %}
+                                <tr>
+                                    <td>{{ collection.id }}</td>
+                                    <td>{{ collection.name }}</td>
+                                    <td>{{ collection.dimension }}</td>
+                                    <td>{{ collection.tenant_id }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger">No collection information available.</div>
+                    {% endif %}
+                </div>
+            </div>
 
         <div class="section">
             <h2>Document IDs</h2>
