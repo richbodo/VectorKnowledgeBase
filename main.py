@@ -5,6 +5,7 @@ from api.routes import bp as api_bp
 from web.routes import bp as web_bp
 from web.monitoring import bp as monitoring_bp
 from services.vector_store import init_vector_store
+from utils.object_storage import get_chroma_storage
 
 # Configure logging
 # Determine if we're in a production environment
@@ -102,9 +103,27 @@ def create_app():
                     app._vector_store_initialized = False
                     return
 
+                # Sync ChromaDB with Replit Object Storage before initializing
+                logger.info("Syncing ChromaDB with Replit Object Storage...")
+                chroma_storage = get_chroma_storage()
+                sync_success, sync_message = chroma_storage.sync_with_object_storage()
+                if sync_success:
+                    logger.info(f"ChromaDB sync successful: {sync_message}")
+                else:
+                    logger.warning(f"ChromaDB sync issue: {sync_message}")
+                
                 logger.info("Starting vector store initialization...")
                 init_vector_store()
                 logger.info("Vector store initialized successfully")
+                
+                # Backup to object storage after successful initialization
+                logger.info("Backing up initialized ChromaDB to Object Storage...")
+                backup_success, backup_message = chroma_storage.backup_to_object_storage()
+                if backup_success:
+                    logger.info(f"ChromaDB backup successful: {backup_message}")
+                else:
+                    logger.warning(f"ChromaDB backup issue: {backup_message}")
+                
                 app._vector_store_initialized = True
             except Exception as e:
                 logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
