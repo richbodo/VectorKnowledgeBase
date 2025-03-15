@@ -78,6 +78,97 @@
                     {% endif %}
                 </div>
             </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Backup Status</h2>
+                </div>
+                <div class="card-body">
+                    {% if diagnostic_data.vector_store_info and diagnostic_data.vector_store_info.backup_status %}
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Last Backup Time:</div>
+                        <div class="col-md-9">
+                            {% if diagnostic_data.vector_store_info.backup_status.last_backup_time %}
+                                {{ diagnostic_data.vector_store_info.backup_status.last_backup_time }}
+                            {% else %}
+                                <span class="text-warning">No backup has been performed</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Backup Interval:</div>
+                        <div class="col-md-9">{{ diagnostic_data.vector_store_info.backup_status.backup_interval_seconds }} seconds</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Pending Backup:</div>
+                        <div class="col-md-9">
+                            {% if diagnostic_data.vector_store_info.backup_status.pending_backup %}
+                                <span class="badge bg-warning">Yes</span>
+                            {% else %}
+                                <span class="badge bg-success">No</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Next Backup Time:</div>
+                        <div class="col-md-9">
+                            {% if diagnostic_data.vector_store_info.backup_status.next_backup_time %}
+                                {{ diagnostic_data.vector_store_info.backup_status.next_backup_time }}
+                            {% else %}
+                                <span class="text-muted">Not scheduled</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        Backup status information not available.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Object Storage</h2>
+                </div>
+                <div class="card-body">
+                    {% if diagnostic_data.vector_store_info and diagnostic_data.vector_store_info.storage_info %}
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Storage Available:</div>
+                        <div class="col-md-9">
+                            {% if diagnostic_data.vector_store_info.storage_info.available %}
+                                <span class="badge bg-success">Yes</span>
+                            {% else %}
+                                <span class="badge bg-danger">No</span>
+                                {% if diagnostic_data.vector_store_info.storage_info.error %}
+                                    <div class="text-danger mt-1">Error: {{ diagnostic_data.vector_store_info.storage_info.error }}</div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if diagnostic_data.vector_store_info.storage_info.available %}
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Files in Storage:</div>
+                        <div class="col-md-9">{{ diagnostic_data.vector_store_info.storage_info.files_count }}</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Has Backup:</div>
+                        <div class="col-md-9">
+                            {% if diagnostic_data.vector_store_info.storage_info.has_backup %}
+                                <span class="badge bg-success">Yes</span>
+                            {% else %}
+                                <span class="badge bg-danger">No</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="alert alert-warning">
+                        Object storage information not available.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
 
             <div class="card mb-4">
                 <div class="card-header">
