@@ -61,6 +61,11 @@ class CustomEmbeddingFunction(EmbeddingFunction):
 
 class VectorStore:
     _instance = None
+    
+    # Class-level variables for backup tracking
+    _last_backup_time = None
+    _backup_interval = 300  # 5 minutes in seconds
+    _pending_backup = False
 
     def __init__(self):
         try:
@@ -296,6 +301,9 @@ class VectorStore:
                         logger.info(f"Verified document {document.id} was properly added to ChromaDB")
                     else:
                         logger.warning(f"Document {document.id} may not have been properly added to ChromaDB")
+                    
+                    # Schedule backup after successful document addition
+                    self._schedule_backup()
                         
                     return True, None
                 except Exception as add_error:
@@ -424,6 +432,39 @@ class VectorStore:
             logger.error("Full search error details:", exc_info=True)
             return [], error_msg
 
+    def _schedule_backup(self):
+        """Schedule a backup if enough time has passed since last backup"""
+        try:
+            current_time = time.time()
+            
+            # Set pending backup flag
+            self.__class__._pending_backup = True
+            
+            # If first backup or enough time has passed, do immediate backup
+            if (self.__class__._last_backup_time is None or 
+                    current_time - self.__class__._last_backup_time >= self.__class__._backup_interval):
+                self._execute_backup()
+        except Exception as e:
+            logger.error(f"Error scheduling backup: {str(e)}")
+            logger.error(traceback.format_exc())
+    
+    def _execute_backup(self):
+        """Execute the actual backup operation"""
+        try:
+            logger.info("Performing ChromaDB backup after document change")
+            storage = get_chroma_storage()
+            success, message = storage.backup_to_object_storage()
+            
+            if success:
+                logger.info(f"Write-triggered backup successful: {message}")
+                self.__class__._last_backup_time = time.time()
+                self.__class__._pending_backup = False
+            else:
+                logger.error(f"Write-triggered backup failed: {message}")
+        except Exception as e:
+            logger.error(f"Error during write-triggered backup: {str(e)}")
+            logger.error(traceback.format_exc())
+    
     def _load_state(self):
         """Load document state from ChromaDB"""
         try:
