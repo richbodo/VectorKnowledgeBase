@@ -85,15 +85,17 @@ class ChromaObjectStorage:
                 file_path = os.path.join(CHROMA_DB_PATH, filename)
                 if os.path.isfile(file_path):
                     # Store with timestamp to keep versioning
-                    storage_key = f"{self.storage_prefix}{filename}"
+                    storage_key = self._get_storage_path(filename)
                     
-                    # Upload the file
-                    self.client.upload_from_filename(file_path, storage_key)
+                    # Upload the file with full absolute path
+                    logger.info(f"Uploading file {file_path} to {storage_key}")
+                    self.client.upload_from_filename(os.path.abspath(file_path), storage_key)
                     logger.info(f"Uploaded {filename} to Object Storage")
                     
                     # Also store a timestamped version for historical tracking
                     history_key = f"{self.storage_prefix}history/{timestamp}/{filename}"
-                    self.client.upload_from_filename(file_path, history_key)
+                    logger.info(f"Creating history version at {history_key}")
+                    self.client.upload_from_filename(os.path.abspath(file_path), history_key)
                     
             # Create a manifest file with timestamp and file list
             manifest = {
@@ -107,7 +109,7 @@ class ChromaObjectStorage:
             manifest_content = json.dumps(manifest, indent=2).encode('utf-8')
             
             # Upload manifest
-            manifest_key = f"{self.storage_prefix}manifest.json"
+            manifest_key = self._get_storage_path("manifest.json")
             self.client.upload_from_bytes(manifest_content, manifest_key)
             logger.info(f"Created backup manifest in Object Storage")
             
@@ -128,7 +130,7 @@ class ChromaObjectStorage:
         
         try:
             # Check if manifest exists
-            manifest_key = f"{self.storage_prefix}manifest.json"
+            manifest_key = self._get_storage_path("manifest.json")
             if not self.client.exists(manifest_key):
                 logger.warning("No backup manifest found in Object Storage")
                 return False, "No backup manifest found"
@@ -151,10 +153,11 @@ class ChromaObjectStorage:
             
             # Download each file listed in the manifest
             for filename in manifest['files']:
-                storage_key = f"{self.storage_prefix}{filename}"
+                storage_key = self._get_storage_path(filename)
                 if self.client.exists(storage_key):
                     file_path = os.path.join(CHROMA_DB_PATH, filename)
-                    self.client.download_to_filename(storage_key, file_path)
+                    logger.info(f"Downloading {storage_key} to {file_path}")
+                    self.client.download_to_filename(storage_key, os.path.abspath(file_path))
                     logger.info(f"Restored {filename} from Object Storage")
                 else:
                     logger.warning(f"File {filename} not found in Object Storage")
