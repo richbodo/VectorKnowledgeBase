@@ -183,6 +183,31 @@ def create_app():
     for rule in app.url_map.iter_rules():
         logger.info(f"Route: {rule.rule} Methods: {rule.methods}")
 
+    # Register shutdown hook for final backup
+    @app.teardown_appcontext
+    def shutdown_backup(exception=None):
+        """Perform final backup when application context is being torn down"""
+        try:
+            logger.info("=== Application shutting down, performing final backup ===")
+            from services.vector_store import VectorStore
+            
+            # Check if vector store was initialized
+            if hasattr(app, '_vector_store_initialized') and app._vector_store_initialized:
+                # Get vector store instance
+                vector_store = VectorStore.get_instance()
+                
+                # Check if there's a pending backup
+                if hasattr(VectorStore, '_pending_backup') and VectorStore._pending_backup:
+                    logger.info("Pending backup detected, executing final backup")
+                    vector_store._execute_backup()
+                    logger.info("Final backup completed successfully")
+                else:
+                    logger.info("No pending backup, skipping final backup")
+            else:
+                logger.info("Vector store was not initialized, skipping final backup")
+        except Exception as e:
+            logger.error(f"Error during shutdown backup: {str(e)}")
+
     logger.info("Flask application configured successfully")
     return app
 
