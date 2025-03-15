@@ -9,6 +9,7 @@ import openai
 from services.embedding_service import EmbeddingService
 from services.vector_store import VectorStore
 from config import CHROMA_DB_PATH
+from utils.object_storage import get_chroma_storage
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,7 @@ def database_diagnostic():
             "collection_information": {},
             "document_information": {},
             "sqlite_analysis": {},
+            "object_storage_info": {},
             "errors": []
         }
         
@@ -125,6 +127,42 @@ def database_diagnostic():
             
             if result["db_information"]["sqlite_exists"]:
                 result["db_information"]["sqlite_size_mb"] = round(os.path.getsize(sqlite_path) / (1024 * 1024), 2)
+                
+            # Check Replit Object Storage integration
+            try:
+                result["object_storage_info"]["available"] = True
+                storage = get_chroma_storage()
+                
+                # Check if client is available
+                result["object_storage_info"]["client_initialized"] = storage.client is not None
+                
+                # List files in object storage
+                if storage.client is not None:
+                    try:
+                        files = storage.list_files()
+                        result["object_storage_info"]["files_found"] = len(files)
+                        result["object_storage_info"]["file_list"] = files[:20] if len(files) <= 20 else files[:20] + ["... and more"]
+                        
+                        # Check for manifest
+                        manifest_key = f"{storage.storage_prefix}manifest.json"
+                        manifest_exists = storage.client.exists(manifest_key) if storage.client else False
+                        result["object_storage_info"]["manifest_exists"] = manifest_exists
+                        
+                        if manifest_exists:
+                            try:
+                                manifest_content = storage.client.download_as_bytes(manifest_key)
+                                import json
+                                manifest = json.loads(manifest_content.decode('utf-8'))
+                                result["object_storage_info"]["manifest"] = manifest
+                            except Exception as e:
+                                result["object_storage_info"]["manifest_error"] = str(e)
+                        
+                    except Exception as e:
+                        result["object_storage_info"]["list_error"] = str(e)
+                
+            except Exception as oe:
+                result["object_storage_info"]["available"] = False
+                result["object_storage_info"]["error"] = str(oe)
                 
                 # Analyze SQLite database
                 conn = sqlite3.connect(sqlite_path)
