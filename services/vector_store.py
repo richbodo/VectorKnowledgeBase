@@ -781,6 +781,17 @@ class VectorStore:
                 except Exception as dir_e:
                     logger.error(f"Error checking DB directory: {str(dir_e)}")
             
+            # Get collections information with chunk counts
+            collections_info = []
+            try:
+                collections_info = [{
+                    'name': 'pdf_documents',
+                    'chunks': embeddings_count
+                }]
+                
+            except Exception as coll_e:
+                logger.error(f"Error getting collections information: {str(coll_e)}")
+                
             # Build comprehensive debug info
             return {
                 "document_count": doc_count,
@@ -797,6 +808,7 @@ class VectorStore:
                 "db_size_mb": round(db_size_mb, 2) if db_size_mb else 0,
                 "metadata_stats": metadata_stats,
                 "doc_id_samples": doc_id_samples_formatted if 'doc_id_samples_formatted' in locals() else [],
+                "collections": collections_info,
                 "chromadb_version": chromadb.__version__ if hasattr(chromadb, "__version__") else "Unknown"
             }
         except Exception as e:
