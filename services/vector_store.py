@@ -149,7 +149,6 @@ class VectorStore:
             
             # In v0.6.0/v0.6.3, each item in the list IS the collection name directly
             collection_exists_via_api = collection_name in existing_collections
-            logger.info(f"Collection names from API: {existing_collections}")
             logger.info(f"Checking if {collection_name} exists in {existing_collections}")
             
             # Collection exists if either check was successful
@@ -410,10 +409,19 @@ class VectorStore:
                             collections = cursor.fetchall()
                             logger.info(f"Collections in SQLite: {collections}")
                             
-                            # Check if any embeddings have metadata
-                            cursor.execute("SELECT COUNT(*) FROM embeddings WHERE metadata IS NOT NULL")
-                            metadata_count = cursor.fetchone()[0]
-                            logger.info(f"Embeddings with metadata: {metadata_count}")
+                            # Check for metadata tables in v0.6.3
+                            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='embedding_metadata'")
+                            if cursor.fetchone():
+                                cursor.execute("SELECT COUNT(*) FROM embedding_metadata")
+                                metadata_count = cursor.fetchone()[0]
+                                logger.info(f"Embeddings with metadata in embedding_metadata table: {metadata_count}")
+                                
+                                # Let's see what's in the metadata table
+                                cursor.execute("SELECT * FROM embedding_metadata LIMIT 5")
+                                metadata_sample = cursor.fetchall()
+                                logger.info(f"Metadata sample: {metadata_sample}")
+                            else:
+                                logger.info("No embedding_metadata table found")
                             
                             # Check for tables
                             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
@@ -451,34 +459,78 @@ class VectorStore:
                             conn = sqlite3.connect(sqlite_path)
                             cursor = conn.cursor()
                             
-                            # First check if the embeddings_metadata table exists
-                            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='embeddings_metadata'")
+                            # First check if the embedding_metadata table exists (v0.6.3)
+                            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='embedding_metadata'")
                             if cursor.fetchone():
-                                logger.info("embeddings_metadata table exists, will check for document IDs")
-                                # Use embeddings_metadata to find document IDs
-                                cursor.execute("SELECT DISTINCT metadata FROM embeddings_metadata WHERE metadata LIKE '%document_id%' LIMIT 100")
-                                results = cursor.fetchall()
-                                logger.info(f"Found {len(results)} embeddings with metadata")
+                                logger.info("embedding_metadata table exists, will check for document IDs")
                                 
-                                import json
+                                # Get the structure of the table first
+                                cursor.execute("PRAGMA table_info(embedding_metadata)")
+                                table_columns = cursor.fetchall()
+                                logger.info(f"embedding_metadata columns: {table_columns}")
+                                
+                                # In v0.6.3, metadata is stored in multiple columns with specific types
+                                # Let's query the table to see what we have
+                                cursor.execute("SELECT embedding_id, key, str_value FROM embedding_metadata WHERE key='document_id' LIMIT 100")
+                                results = cursor.fetchall()
+                                logger.info(f"Found {len(results)} document_id entries in embedding_metadata")
+                                
+                                # Process the results
                                 for row in results:
                                     try:
-                                        metadata = json.loads(row[0])
-                                        if 'document_id' in metadata:
-                                            doc_id = metadata['document_id']
-                                            logger.info(f"Found document ID from SQLite: {doc_id}")
-                                            if doc_id not in all_docs:
-                                                all_docs[doc_id] = {
-                                                    "filename": metadata.get("filename", "Unknown"),
-                                                    "content_type": metadata.get("content_type", "Unknown"),
-                                                    "size": metadata.get("size", 0),
-                                                    "total_chunks": metadata.get("total_chunks", 0),
-                                                    "source": "sqlite_metadata"
-                                                }
-                                    except:
+                                        embedding_id, key, value = row
+                                        doc_id = value
+                                        logger.info(f"Found document ID from SQLite: {doc_id}")
+                                        
+                                        # Now get other metadata for this embedding
+                                        cursor.execute("SELECT key, str_value FROM embedding_metadata WHERE embedding_id=? AND key IN ('filename', 'content_type', 'size', 'total_chunks')", (embedding_id,))
+                                        metadata_values = cursor.fetchall()
+                                        
+                                        # Build metadata dict
+                                        metadata = {"document_id": doc_id}
+                                        for meta_key, meta_value in metadata_values:
+                                            metadata[meta_key] = meta_value
+                                            
+                                        if doc_id not in all_docs:
+                                            all_docs[doc_id] = {
+                                                "filename": metadata.get("filename", "Unknown"),
+                                                "content_type": metadata.get("content_type", "Unknown"),
+                                                "size": metadata.get("size", "0"),
+                                                "total_chunks": metadata.get("total_chunks", "0"),
+                                                "source": "sqlite_metadata_v063"
+                                            }
+                                    except Exception as row_e:
+                                        logger.error(f"Error processing metadata row: {row_e}")
                                         continue
                             else:
-                                logger.warning("embeddings_metadata table does not exist, checking raw embeddings")
+                                # Fall back to checking the old table format
+                                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='embeddings_metadata'")
+                                if cursor.fetchone():
+                                    logger.info("embeddings_metadata table exists, will check for document IDs")
+                                    # Use embeddings_metadata to find document IDs
+                                    cursor.execute("SELECT DISTINCT metadata FROM embeddings_metadata WHERE metadata LIKE '%document_id%' LIMIT 100")
+                                    results = cursor.fetchall()
+                                    logger.info(f"Found {len(results)} embeddings with metadata")
+                                    
+                                    import json
+                                    for row in results:
+                                        try:
+                                            metadata = json.loads(row[0])
+                                            if 'document_id' in metadata:
+                                                doc_id = metadata['document_id']
+                                                logger.info(f"Found document ID from SQLite: {doc_id}")
+                                                if doc_id not in all_docs:
+                                                    all_docs[doc_id] = {
+                                                        "filename": metadata.get("filename", "Unknown"),
+                                                        "content_type": metadata.get("content_type", "Unknown"),
+                                                        "size": metadata.get("size", 0),
+                                                        "total_chunks": metadata.get("total_chunks", 0),
+                                                        "source": "sqlite_metadata_legacy"
+                                                    }
+                                        except:
+                                            continue
+                                else:
+                                    logger.warning("No metadata tables found, will try direct API access")
                                 
                             conn.close()
                         except Exception as sql_err:
