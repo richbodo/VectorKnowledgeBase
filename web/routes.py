@@ -52,6 +52,35 @@ def diagnostics():
     # Fix for template compatibility - move document_details to documents
     if 'document_details' in debug_info and 'documents' not in debug_info:
         debug_info['documents'] = debug_info['document_details']
+        
+    # Add API stats information to fix template references
+    if 'api_stats' not in debug_info:
+        debug_info['api_stats'] = {
+            'successful_calls': 0,
+            'failed_calls': 0,
+            'last_call': 'Never'
+        }
+        
+    # Add OpenAI key info for template references
+    if 'openai_key_info' not in debug_info:
+        # Check if OPENAI_API_KEY environment variable exists
+        import os
+        api_key = os.environ.get('OPENAI_API_KEY', '')
+        
+        if api_key:
+            # Only show minimal info for security
+            prefix = api_key[:4] if len(api_key) >= 4 else "****"
+            debug_info['openai_key_info'] = {
+                'status': 'Available',
+                'type': 'API Key',
+                'prefix': prefix
+            }
+        else:
+            debug_info['openai_key_info'] = {
+                'status': 'Missing',
+                'type': 'Unknown',
+                'prefix': 'None'
+            }
     
     # Get more detailed database info
     db_path = debug_info.get('db_path', '')
@@ -101,6 +130,14 @@ def get_debug_info():
         
         # Add formatted documents list to debug info
         debug_info['documents'] = documents
+    
+    # Add API stats information to fix template references
+    if 'api_stats' not in debug_info:
+        debug_info['api_stats'] = {
+            'successful_calls': 0,
+            'failed_calls': 0,
+            'last_call': 'Never'
+        }
     
     return jsonify(debug_info)
 
