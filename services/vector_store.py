@@ -455,7 +455,8 @@ class VectorStore:
                 if os.path.exists(sqlite_path):
                     conn = sqlite3.connect(sqlite_path)
                     cursor = conn.cursor()
-                    cursor.execute("SELECT COUNT(DISTINCT embedding_id) FROM embedding_metadata WHERE key='document_id' OR key='test_id'")
+                    # In v0.6.3, the relevant columns in embedding_metadata are id, key, and string_value
+                    cursor.execute("SELECT COUNT(DISTINCT id) FROM embedding_metadata WHERE key='document_id' OR key='test_id'")
                     unique_doc_count = cursor.fetchone()[0]
                     logger.info(f"Unique document/test IDs in SQLite: {unique_doc_count}")
                     conn.close()
@@ -499,7 +500,8 @@ class VectorStore:
                                 
                                 # In v0.6.3, metadata is stored in multiple columns with specific types
                                 # Let's query the table to see what we have - look for both document_id and test_id
-                                cursor.execute("SELECT embedding_id, key, str_value FROM embedding_metadata WHERE key='document_id' OR key='test_id' LIMIT 100")
+                                # In v0.6.3, column names are id, key, and string_value (not str_value)
+                                cursor.execute("SELECT id, key, string_value FROM embedding_metadata WHERE key='document_id' OR key='test_id' LIMIT 100")
                                 results = cursor.fetchall()
                                 logger.info(f"Found {len(results)} document_id/test_id entries in embedding_metadata")
                                 
@@ -513,7 +515,8 @@ class VectorStore:
                                         logger.info(f"Found {id_type} from SQLite: {doc_id}")
                                         
                                         # Now get other metadata for this embedding
-                                        cursor.execute("SELECT key, str_value FROM embedding_metadata WHERE embedding_id=? AND key IN ('filename', 'content_type', 'size', 'total_chunks', 'source', 'chroma:document')", (embedding_id,))
+                                        # In v0.6.3, column is string_value, not str_value
+                                        cursor.execute("SELECT key, string_value FROM embedding_metadata WHERE id=? AND key IN ('filename', 'content_type', 'size', 'total_chunks', 'source', 'chroma:document')", (embedding_id,))
                                         metadata_values = cursor.fetchall()
                                         
                                         # Build metadata dict
@@ -673,7 +676,8 @@ class VectorStore:
                             embeddings_count = cursor.fetchone()[0]
                             
                             # Count unique document IDs
-                            cursor.execute("SELECT COUNT(DISTINCT embedding_id) FROM embedding_metadata WHERE key='document_id' OR key='test_id'")
+                            # In v0.6.3, the relevant columns in embedding_metadata are id, key, and string_value
+                            cursor.execute("SELECT COUNT(DISTINCT id) FROM embedding_metadata WHERE key='document_id' OR key='test_id'")
                             unique_doc_count = cursor.fetchone()[0]
                             
                             conn.close()
