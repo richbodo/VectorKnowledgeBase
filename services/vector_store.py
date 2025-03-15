@@ -320,18 +320,33 @@ class VectorStore:
                 logger.warning("No documents in vector store")
                 return [], "No documents available for search"
 
+            logger.info(f"Searching for: {query} (top {k} results, threshold {similarity_threshold})")
+            
+            # Log the count of documents for diagnostic purposes
+            logger.info(f"Current document count: {len(self.documents)}")
+            logger.info(f"Sample document IDs: {list(self.documents.keys())[:3]}")
+
             # Query ChromaDB
-            results = self.collection.query(
-                query_texts=[query],
-                n_results=k * 2,  # Request more results to account for filtering
-                include=["documents", "metadatas", "distances"]
-            )
+            try:
+                results = self.collection.query(
+                    query_texts=[query],
+                    n_results=k * 3,  # Request more results to account for filtering
+                    include=["documents", "metadatas", "distances"]
+                )
+                
+                logger.info(f"ChromaDB search returned {len(results['ids'][0])} results")
+            except Exception as query_error:
+                logger.error(f"Error during ChromaDB query: {str(query_error)}")
+                logger.error("Full query error details:", exc_info=True)
+                return [], f"Search database error: {str(query_error)}"
 
             if not results["ids"][0]:
-                return [], None
+                logger.info("No matches found in database")
+                return [], "No matches found for your query"
 
             search_results = []
-            for i, (chunk_text, metadata, distance) in enumerate(zip(
+            for i, (chunk_id, chunk_text, metadata, distance) in enumerate(zip(
+                results["ids"][0],
                 results["documents"][0],
                 results["metadatas"][0],
                 results["distances"][0]
@@ -341,47 +356,69 @@ class VectorStore:
 
                 # Filter out very low similarity matches
                 if similarity < similarity_threshold:
+                    logger.info(f"Skipping result {i} due to low similarity: {similarity}")
                     continue
 
                 # Look for both document_id and test_id
                 doc_id = None
+                id_type = None
+                
                 if "document_id" in metadata:
                     doc_id = metadata["document_id"]
+                    id_type = "document_id"
                 elif "test_id" in metadata:
                     doc_id = metadata["test_id"]
+                    id_type = "test_id"
                 else:
-                    # If no ID is found, skip this result
-                    continue
+                    # Try to extract from chunk ID if metadata doesn't have it
+                    if "_chunk_" in chunk_id:
+                        doc_id = chunk_id.split("_chunk_")[0]
+                        id_type = "extracted_from_chunk_id"
+                        logger.info(f"Extracted document ID from chunk ID: {doc_id}")
+                    else:
+                        # If no ID is found, skip this result
+                        logger.warning(f"No document ID found in metadata for chunk {i}, skipping")
+                        continue
+
+                # Enhanced metadata with better handling of missing values
+                enhanced_metadata = {
+                    "filename": metadata.get("filename", "Unknown"),
+                    "chunk_index": int(metadata.get("chunk_index", 0)),
+                    "total_chunks": int(metadata.get("total_chunks", 1)),
+                    "content_type": metadata.get("content_type", "text/plain"),
+                    "id_type": id_type,
+                    "chunk_id": chunk_id,
+                    "original_metadata": metadata  # Include full original metadata for debugging
+                }
 
                 result = VectorSearchResult(
                     document_id=doc_id,
                     content=chunk_text,
                     similarity_score=similarity,
-                    metadata={
-                        "filename": metadata.get("filename", "Unknown"),
-                        "chunk_index": metadata.get("chunk_index", 0),
-                        "total_chunks": metadata.get("total_chunks", 1),
-                        "content_type": metadata.get("content_type", "text/plain")
-                    }
+                    metadata=enhanced_metadata
                 )
 
                 search_results.append(result)
+                logger.info(f"Added result {i+1}: doc_id={doc_id}, similarity={similarity:.4f}")
 
                 if len(search_results) >= k:
+                    logger.info(f"Reached desired result count ({k})")
                     break
 
             # Sort by similarity score
             search_results.sort(key=lambda x: x.similarity_score, reverse=True)
-
+            
             if not search_results:
                 logger.info("No results met the similarity threshold")
                 return [], "No relevant matches found"
 
+            logger.info(f"Returning {len(search_results)} search results")
             return search_results, None
 
         except Exception as e:
             error_msg = f"Error searching vector store: {str(e)}"
             logger.error(error_msg)
+            logger.error("Full search error details:", exc_info=True)
             return [], error_msg
 
     def _load_state(self):
@@ -501,9 +538,27 @@ class VectorStore:
                                 # In v0.6.3, metadata is stored in multiple columns with specific types
                                 # Let's query the table to see what we have - look for both document_id and test_id
                                 # In v0.6.3, column names are id, key, and string_value (not str_value)
-                                cursor.execute("SELECT id, key, string_value FROM embedding_metadata WHERE key='document_id' OR key='test_id' LIMIT 100")
-                                results = cursor.fetchall()
-                                logger.info(f"Found {len(results)} document_id/test_id entries in embedding_metadata")
+                                
+                                # ROBUST QUERY: Get all document_id and test_id entries
+                                try:
+                                    cursor.execute("SELECT id, key, string_value FROM embedding_metadata WHERE key='document_id' OR key='test_id' ORDER BY id")
+                                    results = cursor.fetchall()
+                                    logger.info(f"Found {len(results)} document_id/test_id entries in embedding_metadata")
+                                    
+                                    # Also count distinct values to verify our understanding
+                                    cursor.execute("SELECT COUNT(DISTINCT string_value) FROM embedding_metadata WHERE key='document_id' OR key='test_id'")
+                                    unique_doc_count = cursor.fetchone()[0]
+                                    logger.info(f"Found {unique_doc_count} unique document IDs in embedding_metadata")
+                                    
+                                    # Check for any NULL values
+                                    cursor.execute("SELECT COUNT(*) FROM embedding_metadata WHERE (key='document_id' OR key='test_id') AND string_value IS NULL")
+                                    null_count = cursor.fetchone()[0]
+                                    if null_count > 0:
+                                        logger.warning(f"Found {null_count} NULL document IDs in embedding_metadata")
+                                        
+                                except Exception as query_err:
+                                    logger.error(f"Error querying document IDs: {str(query_err)}")
+                                    results = []
                                 
                                 # Process the results
                                 for row in results:
@@ -649,8 +704,25 @@ class VectorStore:
             # Get collection count from ChromaDB
             collection_count = self.collection.count()
             
-            # Document IDs
-            doc_ids = list(self.documents.keys())[:5]  # First 5 for brevity
+            # Document IDs and formatted document info
+            doc_ids = list(self.documents.keys())[:10]  # First 10 for a better sample
+            doc_info = []
+            
+            # Format document info for UI display
+            for doc_id in doc_ids:
+                doc = self.documents.get(doc_id)
+                if doc:
+                    info = {
+                        "id": doc_id,
+                        "filename": doc.metadata.get("filename", "Unknown"),
+                        "content_type": doc.metadata.get("content_type", "Unknown"),
+                        "size": doc.metadata.get("size", 0),
+                        "total_chunks": doc.metadata.get("total_chunks", 0),
+                        "created_at": doc.created_at.isoformat() if hasattr(doc, 'created_at') and doc.created_at else "",
+                        "source": doc.metadata.get("source", "Unknown"),
+                        "id_type": "test_id" if doc_id.startswith("test-") else "document_id"
+                    }
+                    doc_info.append(info)
             
             # Check if database exists
             db_exists = os.path.exists(CHROMA_DB_PATH)
@@ -658,6 +730,7 @@ class VectorStore:
             db_size_mb = 0
             embeddings_count = 0
             unique_doc_count = 0
+            metadata_stats = {}
             
             if db_exists and os.path.isdir(CHROMA_DB_PATH):
                 try:
@@ -666,7 +739,7 @@ class VectorStore:
                     if os.path.exists(sqlite_path):
                         db_size_mb = os.path.getsize(sqlite_path) / (1024 * 1024)
                         
-                        # Get additional counts from SQLite
+                        # Get detailed stats from SQLite
                         try:
                             conn = sqlite3.connect(sqlite_path)
                             cursor = conn.cursor()
@@ -675,32 +748,64 @@ class VectorStore:
                             cursor.execute("SELECT COUNT(*) FROM embeddings")
                             embeddings_count = cursor.fetchone()[0]
                             
-                            # Count unique document IDs
-                            # In v0.6.3, the relevant columns in embedding_metadata are id, key, and string_value
-                            cursor.execute("SELECT COUNT(DISTINCT id) FROM embedding_metadata WHERE key='document_id' OR key='test_id'")
+                            # Count document IDs by different criteria
+                            cursor.execute("SELECT COUNT(DISTINCT string_value) FROM embedding_metadata WHERE key='document_id'")
+                            doc_id_count = cursor.fetchone()[0]
+                            
+                            cursor.execute("SELECT COUNT(DISTINCT string_value) FROM embedding_metadata WHERE key='test_id'")
+                            test_id_count = cursor.fetchone()[0]
+                            
+                            # Get total unique IDs across both formats
+                            cursor.execute("SELECT COUNT(DISTINCT string_value) FROM embedding_metadata WHERE key='document_id' OR key='test_id'")
                             unique_doc_count = cursor.fetchone()[0]
+                            
+                            # Get metadata key stats
+                            cursor.execute("SELECT key, COUNT(*) FROM embedding_metadata GROUP BY key ORDER BY COUNT(*) DESC")
+                            metadata_keys = cursor.fetchall()
+                            metadata_stats = {key: count for key, count in metadata_keys}
+                            
+                            # Sample document IDs for verification
+                            cursor.execute("""
+                                SELECT string_value, key FROM embedding_metadata 
+                                WHERE key='document_id' OR key='test_id' 
+                                GROUP BY string_value 
+                                ORDER BY string_value
+                                LIMIT 10
+                            """)
+                            doc_id_samples = cursor.fetchall()
+                            doc_id_samples_formatted = [f"{value} ({key})" for value, key in doc_id_samples]
                             
                             conn.close()
                         except Exception as e:
-                            logger.error(f"Error getting SQLite counts: {str(e)}")
-                except Exception:
-                    pass
+                            logger.error(f"Error getting SQLite stats: {str(e)}")
+                except Exception as dir_e:
+                    logger.error(f"Error checking DB directory: {str(dir_e)}")
             
+            # Build comprehensive debug info
             return {
                 "document_count": doc_count,
                 "collection_count": collection_count,
                 "sqlite_embeddings_count": embeddings_count,
                 "sqlite_unique_doc_count": unique_doc_count,
+                "document_id_count": doc_id_count if 'doc_id_count' in locals() else None,
+                "test_id_count": test_id_count if 'test_id_count' in locals() else None,
                 "document_ids_sample": doc_ids,
+                "document_details": doc_info,
                 "db_path": CHROMA_DB_PATH,
                 "db_exists": db_exists,
                 "db_contents": db_contents,
-                "db_size_mb": round(db_size_mb, 2) if db_size_mb else 0
+                "db_size_mb": round(db_size_mb, 2) if db_size_mb else 0,
+                "metadata_stats": metadata_stats,
+                "doc_id_samples": doc_id_samples_formatted if 'doc_id_samples_formatted' in locals() else [],
+                "chromadb_version": chromadb.__version__ if hasattr(chromadb, "__version__") else "Unknown"
             }
         except Exception as e:
             logger.error(f"Error getting debug info: {str(e)}")
+            logger.error("Debug info error details:", exc_info=True)
             return {
-                "error": str(e)
+                "error": str(e),
+                "document_count": len(self.documents) if hasattr(self, 'documents') else 0,
+                "documents": [] 
             }
 
 def init_vector_store():
