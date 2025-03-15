@@ -37,24 +37,35 @@ for env_var, value in os.environ.items():
     if any(x in env_var.lower() for x in ['repl', 'home', 'path', 'dir', 'root']):
         logger.info(f"{env_var}: {value}")
 
-# In Replit, the most reliable persistent storage is in the REPL_HOME directory
-# The 'data' directory in REPL_HOME is designed for persistent data
-REPL_HOME = os.environ.get('REPL_HOME', '')
-REPL_OWNER = os.environ.get('REPL_OWNER', '')
-REPL_SLUG = os.environ.get('REPL_SLUG', '')
-
-if REPL_HOME:
-    # Use REPL_HOME for persistence
-    PERSISTENT_STORAGE_ROOT = os.path.join(REPL_HOME, 'data')
-    logger.info(f"Using REPL_HOME based storage: {PERSISTENT_STORAGE_ROOT}")
-elif REPL_SLUG and REPL_OWNER:
-    # Fallback if REPL_HOME is not available
-    PERSISTENT_STORAGE_ROOT = f"/home/{REPL_OWNER}/{REPL_SLUG}/data"
-    logger.info(f"Using owner/slug based storage: {PERSISTENT_STORAGE_ROOT}")
+# For Replit deployments and production environments, use a fixed persistent storage path
+# This should be the most reliable location in Replit
+if os.environ.get('REPL_DEPLOYMENT'):
+    # We're in production deployment mode
+    PERSISTENT_STORAGE_ROOT = '/home/runner/.local/share/chromadb'
+    logger.info(f"Using production deployment storage: {PERSISTENT_STORAGE_ROOT}")
+    
+    # Log all critical environment variables for debugging in production
+    logger.info("=== PRODUCTION DEPLOYMENT ENVIRONMENT ===")
+    for env_var in os.environ:
+        if any(x in env_var for x in ['REPL', 'HOME', 'PATH', 'RUNNER']):
+            logger.info(f"{env_var}: {os.environ[env_var]}")
 else:
-    # Final fallback to a common location
-    PERSISTENT_STORAGE_ROOT = '/home/runner/data'
-    logger.info(f"Using default persistent storage: {PERSISTENT_STORAGE_ROOT}")
+    # For development, try to use the defined REPL_HOME or REPL_SLUG path
+    REPL_HOME = os.environ.get('REPL_HOME', '')
+    REPL_SLUG = os.environ.get('REPL_SLUG', '')
+    
+    if REPL_HOME:
+        # Use REPL_HOME for persistence in development
+        PERSISTENT_STORAGE_ROOT = os.path.join(REPL_HOME, '.cache', 'chromadb')
+        logger.info(f"Using REPL_HOME storage for development: {PERSISTENT_STORAGE_ROOT}")
+    elif REPL_SLUG:
+        # Fallback if REPL_HOME is not available
+        PERSISTENT_STORAGE_ROOT = f"/home/runner/{REPL_SLUG}/.cache/chromadb"
+        logger.info(f"Using REPL_SLUG storage for development: {PERSISTENT_STORAGE_ROOT}")
+    else:
+        # Final fallback to a common location
+        PERSISTENT_STORAGE_ROOT = '/home/runner/.cache/chromadb'
+        logger.info(f"Using default storage for development: {PERSISTENT_STORAGE_ROOT}")
 
 # Create the persistent directory if it doesn't exist
 os.makedirs(PERSISTENT_STORAGE_ROOT, exist_ok=True)
@@ -62,12 +73,9 @@ logger.info(f"Persistent storage exists: {os.path.exists(PERSISTENT_STORAGE_ROOT
 logger.info(f"Storage permissions: {oct(os.stat(PERSISTENT_STORAGE_ROOT).st_mode)[-3:]}")
 
 # Set the ChromaDB path to this persistent location
-CHROMA_DB_PATH = os.path.join(PERSISTENT_STORAGE_ROOT, 'chroma_db')
-logger.info(f"Using persistent ChromaDB path: {CHROMA_DB_PATH}")
-
-# Add a document registry path to track documents separately
-DOCUMENT_REGISTRY_PATH = os.path.join(PERSISTENT_STORAGE_ROOT, 'document_registry.json')
-logger.info(f"Document registry path: {DOCUMENT_REGISTRY_PATH}")
+# This matches ChromaDB's own default location when not explicitly configured
+CHROMA_DB_PATH = PERSISTENT_STORAGE_ROOT
+logger.info(f"Using ChromaDB path: {CHROMA_DB_PATH}")
 
 # Check if there's any existing data
 if os.path.exists(CHROMA_DB_PATH):
