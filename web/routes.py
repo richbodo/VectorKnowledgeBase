@@ -11,7 +11,11 @@ def index():
     """Render the main page"""
     vector_store = VectorStore.get_instance()
     debug_info = vector_store.get_debug_info()
-
+    
+    # Fix for template compatibility - move document_details to documents
+    if 'document_details' in debug_info and 'documents' not in debug_info:
+        debug_info['documents'] = debug_info['document_details']
+    
     # Get query parameter if it exists
     query = request.args.get('query', '')
     results = []
@@ -38,23 +42,27 @@ def get_debug_info():
     vector_store = VectorStore.get_instance()
     debug_info = vector_store.get_debug_info()
     
-    # Format documents for JSON output
-    documents = []
-    for doc_id, doc in vector_store.documents.items():
-        doc_info = {
-            'id': doc_id,
-            'document_id': doc_id,  # For compatibility
-            'filename': doc.metadata.get('filename', 'Unknown'),
-            'content_type': doc.metadata.get('content_type', 'Unknown'),
-            'size': doc.metadata.get('size', 0),
-            'total_chunks': doc.metadata.get('total_chunks', 0),
-            'created_at': doc.created_at.isoformat() if hasattr(doc, 'created_at') and doc.created_at else "",
-            'metadata': doc.metadata  # Full metadata
-        }
-        documents.append(doc_info)
-    
-    # Add formatted documents list to debug info
-    debug_info['documents'] = documents
+    # Use existing document details if available
+    if 'document_details' in debug_info and 'documents' not in debug_info:
+        debug_info['documents'] = debug_info['document_details']
+    else:
+        # Otherwise format documents for JSON output manually
+        documents = []
+        for doc_id, doc in vector_store.documents.items():
+            doc_info = {
+                'id': doc_id,
+                'document_id': doc_id,  # For compatibility
+                'filename': doc.metadata.get('filename', 'Unknown'),
+                'content_type': doc.metadata.get('content_type', 'Unknown'),
+                'size': doc.metadata.get('size', 0),
+                'total_chunks': doc.metadata.get('total_chunks', 0),
+                'created_at': doc.created_at.isoformat() if hasattr(doc, 'created_at') and doc.created_at else "",
+                'metadata': doc.metadata  # Full metadata
+            }
+            documents.append(doc_info)
+        
+        # Add formatted documents list to debug info
+        debug_info['documents'] = documents
     
     return jsonify(debug_info)
 
