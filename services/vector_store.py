@@ -2,12 +2,15 @@ import logging
 import os
 import sqlite3
 import chromadb
+import time
+import traceback
 from chromadb.api.types import EmbeddingFunction
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from models import Document, VectorSearchResult
 from services.embedding_service import EmbeddingService
 from config import EMBEDDING_MODEL, CHROMA_DB_PATH
+from utils.object_storage import get_chroma_storage
 
 logger = logging.getLogger(__name__)
 
