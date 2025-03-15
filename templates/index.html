@@ -105,7 +105,29 @@
                         const response = await fetch('{{ url_for('web.get_debug_info') }}');
                         const debugData = await response.json();
                         const debugInfoContainer = document.getElementById('debugInfo').querySelector('pre');
-                        debugInfoContainer.textContent = `Document Count: ${debugData.document_count}\nIndex Size: ${debugData.index_size || "N/A"}\n\n${debugData.last_api_error ? `API Error:\n${debugData.last_api_error}` : ''}\n\nDocuments:\n${debugData.documents.map(doc => `- ID: ${doc.id}\n  Filename: ${doc.filename}\n  Size: ${doc.size} bytes\n  Created: ${doc.created_at}`).join('\n')}`;
+                        
+                        // Format document information, handling both formats
+                        let documentText = '';
+                        if (debugData.documents && Array.isArray(debugData.documents)) {
+                            documentText = debugData.documents.map(doc => {
+                                // For each document, extract metadata regardless of format
+                                const id = doc.id || doc.document_id || "Unknown ID";
+                                const filename = doc.metadata?.filename || doc.filename || "Unknown";
+                                const size = doc.metadata?.size || doc.size || "Unknown";
+                                const createdAt = doc.created_at || "Unknown";
+                                
+                                return `- ID: ${id}\n  Filename: ${filename}\n  Size: ${size} bytes\n  Created: ${createdAt}`;
+                            }).join('\n');
+                        } else if (debugData.document_ids_sample && Array.isArray(debugData.document_ids_sample)) {
+                            // Alternative format from diagnostic endpoint
+                            documentText = debugData.document_ids_sample.map(id => `- ID: ${id}`).join('\n');
+                        }
+                        
+                        // Format the debug info display
+                        const displayText = `Document Count: ${debugData.document_count}\nIndex Size: ${debugData.index_size || debugData.db_size_mb || "N/A"}${debugData.sqlite_embeddings_count ? "\nSQLite Embeddings: " + debugData.sqlite_embeddings_count : ''}${debugData.sqlite_unique_doc_count ? "\nUnique Document IDs: " + debugData.sqlite_unique_doc_count : ''}\n\n${debugData.last_api_error ? `API Error:\n${debugData.last_api_error}\n\n` : ''}\nDocuments:\n${documentText}`;
+                        
+                        debugInfoContainer.textContent = displayText;
+                        console.log("Debug data refreshed:", debugData);
                     } catch (error) {
                         console.error('Error refreshing debug info:', error);
                         alert('Error refreshing debug information');
@@ -185,7 +207,7 @@
                 {% for result in results %}
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h3 class="h6 mb-0">From: {{ result.metadata.filename }}</h3>
+                        <h3 class="h6 mb-0">From: {{ result.metadata.filename if result.metadata and result.metadata.filename else "Unknown document" }}</h3>
                         <span class="badge {% if result.similarity_score > 0.8 %}bg-success{% elif result.similarity_score > 0.5 %}bg-info{% else %}bg-warning{% endif %}">
                             Match: {{ "%.1f"|format(result.similarity_score * 100) }}%
                         </span>
@@ -194,7 +216,12 @@
                         <div class="card-body">
                             <p class="mb-2" style="white-space: pre-wrap;">{{ result.content }}</p>
                             <small class="text-muted">
+                                {% if result.metadata and result.metadata.chunk_index is defined and result.metadata.total_chunks is defined %}
                                 Chunk {{ result.metadata.chunk_index + 1 }} of {{ result.metadata.total_chunks }}
+                                {% endif %}
+                                {% if result.document_id %}
+                                <br>Document ID: {{ result.document_id[:8] }}...{{ result.document_id[-8:] if result.document_id|length > 16 else result.document_id }}
+                                {% endif %}
                             </small>
                         </div>
                     </div>
@@ -209,7 +236,10 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h2 class="h5 mb-0">Debug Information</h2>
                 <div>
-                    <a href="{{ url_for('monitoring.health_check') }}" class="btn btn-sm btn-info me-2" target="_blank">
+                    <a href="{{ url_for('monitoring.database_diagnostic') }}" class="btn btn-sm btn-primary me-2" target="_blank">
+                        Database Diagnostics
+                    </a>
+                    <a href="{{ url_for('monitoring.test_openai_connection') }}" class="btn btn-sm btn-info me-2" target="_blank">
                         Test OpenAI Connection
                     </a>
                     <button class="btn btn-sm btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#debugInfo">

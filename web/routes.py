@@ -37,6 +37,25 @@ def get_debug_info():
     """Return debug information as JSON for AJAX updates"""
     vector_store = VectorStore.get_instance()
     debug_info = vector_store.get_debug_info()
+    
+    # Format documents for JSON output
+    documents = []
+    for doc_id, doc in vector_store.documents.items():
+        doc_info = {
+            'id': doc_id,
+            'document_id': doc_id,  # For compatibility
+            'filename': doc.metadata.get('filename', 'Unknown'),
+            'content_type': doc.metadata.get('content_type', 'Unknown'),
+            'size': doc.metadata.get('size', 0),
+            'total_chunks': doc.metadata.get('total_chunks', 0),
+            'created_at': doc.created_at.isoformat() if hasattr(doc, 'created_at') and doc.created_at else "",
+            'metadata': doc.metadata  # Full metadata
+        }
+        documents.append(doc_info)
+    
+    # Add formatted documents list to debug info
+    debug_info['documents'] = documents
+    
     return jsonify(debug_info)
 
 def error_handler(error):
