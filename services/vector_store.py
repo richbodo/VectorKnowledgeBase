@@ -197,9 +197,12 @@ class VectorStore:
                     count = self.collection.count()
                     logger.info(f"Existing collection has {count} documents")
                     
-                    # Now set the embedding function without modifying the collection
+                    # ChromaDB 0.6.3 handles embedding functions differently
+                    # We don't need to set the function directly on the collection anymore
+                    # The function is kept in memory during runtime but not persisted
+                    # When using v0.6.3+, this happens automatically
                     self.collection._embedding_function = embedding_func
-                    logger.info(f"Set embedding function on existing collection")
+                    logger.info(f"Set embedding function on existing collection (using ChromaDB v{chromadb.__version__})")
                 except Exception as e:
                     logger.error(f"Error getting existing collection: {str(e)}")
                     # Fallback to get_or_create with explicit embedding function
