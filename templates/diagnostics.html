@@ -104,7 +104,7 @@
                                     <td>{{ doc.filename|default('Unknown') }}</td>
                                     <td>{{ doc.size|default('Unknown')|filesizeformat }}</td>
                                     <td>{{ doc.created_at|default('Unknown') }}</td>
-                                    <td>{{ doc.metadata.chunk_count|default('Unknown') }}</td>
+                                    <td>{{ doc.metadata.chunk_count if doc.metadata is defined else 'Unknown' }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

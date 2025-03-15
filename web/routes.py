@@ -26,8 +26,13 @@ def index():
         if error_msg:
             flash(error_msg, "error")
 
+    # Get the debug info for consistent rendering between pages
+    debug_info = vector_store.get_debug_info()
+    debug_info['document_count'] = doc_count  # Ensure document_count is available
+    
     return render_template('index.html', 
-                         document_count=doc_count, 
+                         document_count=doc_count,  # Keep for backward compatibility
+                         debug_info=debug_info,
                          query=query, 
                          results=results,
                          api_key=VKB_API_KEY)  # Pass API key to template
