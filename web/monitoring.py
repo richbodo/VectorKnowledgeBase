@@ -105,7 +105,16 @@ def database_diagnostic():
         # Get VectorStore instance debug info
         try:
             vector_store = VectorStore.get_instance()
-            result["vector_store_info"] = vector_store.get_debug_info()
+            debug_info = vector_store.get_debug_info()
+            result["vector_store_info"] = debug_info
+            
+            # Copy backup status to the root level for compatibility with template
+            if "backup_status" in debug_info:
+                result["backup_status"] = debug_info["backup_status"]
+            
+            # Copy storage info to the root level for compatibility with template
+            if "storage_info" in debug_info:
+                result["object_storage_info"] = debug_info["storage_info"]
         except Exception as e:
             error_msg = f"Error getting VectorStore debug info: {str(e)}"
             logger.error(error_msg, exc_info=True)
