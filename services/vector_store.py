@@ -836,6 +836,31 @@ class VectorStore:
             except Exception as coll_e:
                 logger.error(f"Error getting collections information: {str(coll_e)}")
                 
+            # Get backup information
+            backup_status = {
+                "last_backup_time": datetime.fromtimestamp(self.__class__._last_backup_time).isoformat() if self.__class__._last_backup_time else None,
+                "backup_interval_seconds": self.__class__._backup_interval,
+                "pending_backup": self.__class__._pending_backup,
+                "next_backup_time": datetime.fromtimestamp(self.__class__._last_backup_time + self.__class__._backup_interval).isoformat() if self.__class__._last_backup_time else None
+            }
+            
+            # Get object storage backup information
+            try:
+                storage = get_chroma_storage()
+                storage_files = storage.list_files()
+                has_storage_backup = len(storage_files) > 0
+                storage_info = {
+                    "available": True,
+                    "files_count": len(storage_files),
+                    "has_backup": has_storage_backup
+                }
+            except Exception as storage_e:
+                logger.error(f"Error getting storage info: {str(storage_e)}")
+                storage_info = {
+                    "available": False,
+                    "error": str(storage_e)
+                }
+            
             # Build comprehensive debug info
             return {
                 "document_count": doc_count,
@@ -853,7 +878,9 @@ class VectorStore:
                 "metadata_stats": metadata_stats,
                 "doc_id_samples": doc_id_samples_formatted if 'doc_id_samples_formatted' in locals() else [],
                 "collections": collections_info,
-                "chromadb_version": chromadb.__version__ if hasattr(chromadb, "__version__") else "Unknown"
+                "chromadb_version": chromadb.__version__ if hasattr(chromadb, "__version__") else "Unknown",
+                "backup_status": backup_status,
+                "storage_info": storage_info
             }
         except Exception as e:
             logger.error(f"Error getting debug info: {str(e)}")

@@ -98,6 +98,7 @@ def database_diagnostic():
             "document_information": {},
             "sqlite_analysis": {},
             "object_storage_info": {},
+            "backup_status": {},
             "errors": []
         }
         
