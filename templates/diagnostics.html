@@ -1,0 +1,448 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3">System Diagnostics</h1>
+            <p class="text-muted">Comprehensive system diagnostics for troubleshooting and monitoring.</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('web.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Main Page
+            </a>
+            <button id="refreshDiagnostics" class="btn btn-primary">
+                <i class="fas fa-sync-alt"></i> Refresh Data
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-4" id="diagnosticTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="vectorstore-tab" data-bs-toggle="tab" data-bs-target="#vectorstore" type="button" role="tab" aria-controls="vectorstore" aria-selected="true">Vector Store</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="chromadb-tab" data-bs-toggle="tab" data-bs-target="#chromadb" type="button" role="tab" aria-controls="chromadb" aria-selected="false">ChromaDB</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="openai-tab" data-bs-toggle="tab" data-bs-target="#openai" type="button" role="tab" aria-controls="openai" aria-selected="false">OpenAI</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="server-tab" data-bs-toggle="tab" data-bs-target="#server" type="button" role="tab" aria-controls="server" aria-selected="false">Server</button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="diagnosticTabsContent">
+        <!-- Vector Store Tab -->
+        <div class="tab-pane fade show active" id="vectorstore" role="tabpanel" aria-labelledby="vectorstore-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Vector Store State</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card mb-3 bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title h6">Document Summary</h5>
+                                    <p class="mb-1"><strong>Total Documents:</strong> <span id="document-count">{{ debug_info.document_count }}</span></p>
+                                    <p class="mb-1"><strong>Index Size:</strong> <span id="index-size">{{ debug_info.index_size }}</span></p>
+                                    <p class="mb-0"><strong>Embedding Count:</strong> <span id="embedding-count">{{ debug_info.sqlite_embeddings_count|default('N/A') }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title h6">Document ID Types</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID Type</th>
+                                                    <th>Count</th>
+                                                    <th>Format Example</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>document_id</td>
+                                                    <td id="doc-id-count">{{ debug_info.document_id_count|default('0') }}</td>
+                                                    <td><code>1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p</code></td>
+                                                </tr>
+                                                <tr>
+                                                    <td>test_id</td>
+                                                    <td id="test-id-count">{{ debug_info.test_id_count|default('0') }}</td>
+                                                    <td><code>test-doc-1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n</code></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="h6 mt-4 mb-3">Document List</h3>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Document ID</th>
+                                    <th>Filename</th>
+                                    <th>Size</th>
+                                    <th>Created</th>
+                                    <th>Chunks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="documents-list">
+                                {% for doc in debug_info.documents %}
+                                <tr>
+                                    <td><code>{{ doc.id }}</code></td>
+                                    <td>{{ doc.filename|default('Unknown') }}</td>
+                                    <td>{{ doc.size|default('Unknown')|filesizeformat }}</td>
+                                    <td>{{ doc.created_at|default('Unknown') }}</td>
+                                    <td>{{ doc.metadata.chunk_count|default('Unknown') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ChromaDB Tab -->
+        <div class="tab-pane fade" id="chromadb" role="tabpanel" aria-labelledby="chromadb-tab">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0">ChromaDB Diagnostics</h2>
+                    <a href="{{ url_for('monitoring.database_diagnostic') }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                        Raw API
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3 bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title h6">Database Information</h5>
+                                    <p class="mb-1"><strong>DB Path:</strong> <span id="db-path">{{ debug_info.db_path }}</span></p>
+                                    <p class="mb-1"><strong>DB Size:</strong> <span id="db-size">{{ debug_info.db_size_mb|default('Unknown') }} MB</span></p>
+                                    <p class="mb-0"><strong>Collection Count:</strong> <span id="collection-count">{{ debug_info.collection_count|default('Unknown') }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3 bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title h6">Collection Details</h5>
+                                    <p class="mb-1"><strong>Collection Name:</strong> <span id="collection-name">{{ debug_info.collection_name|default('pdf_documents') }}</span></p>
+                                    <p class="mb-1"><strong>Embedding Count:</strong> <span id="embedding-count-chroma">{{ debug_info.embedding_count|default('Unknown') }}</span></p>
+                                    <p class="mb-0"><strong>Embedding Dimension:</strong> <span id="embedding-dimension">{{ debug_info.embedding_dimension|default('Unknown') }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="h6 mt-4 mb-3">SQLite Analysis</h3>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Table</th>
+                                    <th>Rows</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sqlite-tables">
+                                {% for table in debug_info.sqlite_tables %}
+                                <tr>
+                                    <td><code>{{ table.name }}</code></td>
+                                    <td>{{ table.rows }}</td>
+                                    <td>{{ table.notes|default('') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if debug_info.sqlite_issues %}
+                    <div class="alert alert-warning mt-4">
+                        <h3 class="h6">Potential Issues:</h3>
+                        <ul class="mb-0">
+                            {% for issue in debug_info.sqlite_issues %}
+                            <li>{{ issue }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- OpenAI Tab -->
+        <div class="tab-pane fade" id="openai" role="tabpanel" aria-labelledby="openai-tab">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0">OpenAI API Diagnostics</h2>
+                    <a href="{{ url_for('monitoring.test_openai_connection') }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                        Test Connection
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h3 class="h6">API Key Information:</h3>
+                        <p class="mb-0" id="openai-api-info">
+                            {% if debug_info.openai_key_info %}
+                            <strong>Status:</strong> {{ debug_info.openai_key_info.status }} | 
+                            <strong>Type:</strong> {{ debug_info.openai_key_info.type }} | 
+                            <strong>First 4 chars:</strong> {{ debug_info.openai_key_info.prefix }}
+                            {% else %}
+                            API Key information not available
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    {% if debug_info.last_api_error %}
+                    <div class="alert alert-danger mt-3">
+                        <h3 class="h6">Last API Error:</h3>
+                        <pre class="mb-0 bg-dark text-light p-2 rounded">{{ debug_info.last_api_error }}</pre>
+                    </div>
+                    {% endif %}
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h3 class="h6 mb-0">Embedding Service</h3>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-1"><strong>Model:</strong> <span id="embedding-model">{{ debug_info.embedding_model|default('text-embedding-3-small') }}</span></p>
+                                    <p class="mb-1"><strong>Dimension:</strong> <span id="model-dimension">{{ debug_info.model_dimension|default('1536') }}</span></p>
+                                    <p class="mb-0"><strong>Max Tokens:</strong> <span id="max-tokens">{{ debug_info.max_tokens|default('8191') }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h3 class="h6 mb-0">API Statistics</h3>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-1"><strong>Successful Calls:</strong> <span id="successful-calls">{{ debug_info.api_stats.successful_calls|default('0') }}</span></p>
+                                    <p class="mb-1"><strong>Failed Calls:</strong> <span id="failed-calls">{{ debug_info.api_stats.failed_calls|default('0') }}</span></p>
+                                    <p class="mb-0"><strong>Last Call:</strong> <span id="last-call">{{ debug_info.api_stats.last_call|default('Never') }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Server Tab -->
+        <div class="tab-pane fade" id="server" role="tabpanel" aria-labelledby="server-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Server Diagnostics</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3 bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title h6">Server Status</h5>
+                                    <p class="mb-1"><strong>Environment:</strong> <span id="environment">{{ debug_info.environment|default('production') }}</span></p>
+                                    <p class="mb-1"><strong>Uptime:</strong> <span id="uptime">{{ debug_info.uptime|default('Unknown') }}</span></p>
+                                    <p class="mb-0"><strong>Flask Version:</strong> <span id="flask-version">{{ debug_info.flask_version|default('Unknown') }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3 bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title h6">Memory Usage</h5>
+                                    <p class="mb-1"><strong>Used Memory:</strong> <span id="used-memory">{{ debug_info.used_memory|default('Unknown') }}</span></p>
+                                    <p class="mb-1"><strong>Available Memory:</strong> <span id="available-memory">{{ debug_info.available_memory|default('Unknown') }}</span></p>
+                                    <p class="mb-0"><strong>Memory Percentage:</strong> <span id="memory-percentage">{{ debug_info.memory_percentage|default('Unknown') }}%</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="h6 mt-4 mb-3">Recent Logs</h3>
+                    <div class="mb-3">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="logInfoCheck" checked>
+                            <label class="form-check-label" for="logInfoCheck">INFO</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="logWarningCheck" checked>
+                            <label class="form-check-label" for="logWarningCheck">WARNING</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="logErrorCheck" checked>
+                            <label class="form-check-label" for="logErrorCheck">ERROR</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="logDebugCheck">
+                            <label class="form-check-label" for="logDebugCheck">DEBUG</label>
+                        </div>
+                    </div>
+                    <div class="bg-dark text-light p-3 rounded">
+                        <pre id="server-logs" class="mb-0" style="max-height: 400px; overflow-y: auto;">{{ debug_info.recent_logs|default('No logs available.') }}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Refresh diagnostics data
+document.getElementById('refreshDiagnostics').addEventListener('click', function() {
+    fetchDiagnosticData();
+});
+
+// Fetch diagnostic data via AJAX
+async function fetchDiagnosticData() {
+    try {
+        const response = await fetch('{{ url_for("web.get_debug_info") }}');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        updateDiagnosticDisplay(data);
+    } catch (error) {
+        console.error('Error fetching diagnostic data:', error);
+        alert('Failed to refresh diagnostic data. See console for details.');
+    }
+}
+
+// Update the diagnostic display with new data
+function updateDiagnosticDisplay(data) {
+    // Vector Store tab updates
+    document.getElementById('document-count').textContent = data.document_count || '0';
+    document.getElementById('index-size').textContent = data.index_size || 'N/A';
+    document.getElementById('embedding-count').textContent = data.sqlite_embeddings_count || 'N/A';
+    document.getElementById('doc-id-count').textContent = data.document_id_count || '0';
+    document.getElementById('test-id-count').textContent = data.test_id_count || '0';
+    
+    // Update documents list
+    const documentsList = document.getElementById('documents-list');
+    if (data.documents && Array.isArray(data.documents)) {
+        documentsList.innerHTML = '';
+        data.documents.forEach(doc => {
+            const row = document.createElement('tr');
+            
+            // Format file size
+            let sizeDisplay = 'Unknown';
+            if (doc.size) {
+                const size = parseInt(doc.size);
+                if (!isNaN(size)) {
+                    if (size < 1024) sizeDisplay = `${size} bytes`;
+                    else if (size < 1024 * 1024) sizeDisplay = `${(size / 1024).toFixed(1)} KB`;
+                    else sizeDisplay = `${(size / (1024 * 1024)).toFixed(1)} MB`;
+                }
+            }
+            
+            // Create columns
+            row.innerHTML = `
+                <td><code>${doc.id || ''}</code></td>
+                <td>${doc.filename || doc.metadata?.filename || 'Unknown'}</td>
+                <td>${sizeDisplay}</td>
+                <td>${doc.created_at || 'Unknown'}</td>
+                <td>${doc.metadata?.chunk_count || 'Unknown'}</td>
+            `;
+            documentsList.appendChild(row);
+        });
+    }
+    
+    // ChromaDB tab updates
+    if (data.db_path) document.getElementById('db-path').textContent = data.db_path;
+    if (data.db_size_mb) document.getElementById('db-size').textContent = `${data.db_size_mb} MB`;
+    if (data.collection_count) document.getElementById('collection-count').textContent = data.collection_count;
+    if (data.collection_name) document.getElementById('collection-name').textContent = data.collection_name;
+    if (data.embedding_count) document.getElementById('embedding-count-chroma').textContent = data.embedding_count;
+    if (data.embedding_dimension) document.getElementById('embedding-dimension').textContent = data.embedding_dimension;
+    
+    // Update SQLite tables
+    const sqliteTables = document.getElementById('sqlite-tables');
+    if (data.sqlite_tables && Array.isArray(data.sqlite_tables)) {
+        sqliteTables.innerHTML = '';
+        data.sqlite_tables.forEach(table => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><code>${table.name || ''}</code></td>
+                <td>${table.rows || '0'}</td>
+                <td>${table.notes || ''}</td>
+            `;
+            sqliteTables.appendChild(row);
+        });
+    }
+    
+    // OpenAI tab updates
+    if (data.openai_key_info) {
+        const apiInfo = document.getElementById('openai-api-info');
+        apiInfo.innerHTML = `
+            <strong>Status:</strong> ${data.openai_key_info.status || 'Unknown'} | 
+            <strong>Type:</strong> ${data.openai_key_info.type || 'Unknown'} | 
+            <strong>First 4 chars:</strong> ${data.openai_key_info.prefix || 'Unknown'}
+        `;
+    }
+    
+    // Server tab updates
+    if (data.environment) document.getElementById('environment').textContent = data.environment;
+    if (data.uptime) document.getElementById('uptime').textContent = data.uptime;
+    if (data.flask_version) document.getElementById('flask-version').textContent = data.flask_version;
+    if (data.used_memory) document.getElementById('used-memory').textContent = data.used_memory;
+    if (data.available_memory) document.getElementById('available-memory').textContent = data.available_memory;
+    if (data.memory_percentage) document.getElementById('memory-percentage').textContent = `${data.memory_percentage}%`;
+    
+    // Update logs if available
+    if (data.recent_logs) {
+        document.getElementById('server-logs').textContent = data.recent_logs;
+    }
+    
+    console.log('Diagnostic data updated successfully');
+}
+
+// Log filtering functionality
+document.getElementById('logInfoCheck').addEventListener('change', filterLogs);
+document.getElementById('logWarningCheck').addEventListener('change', filterLogs);
+document.getElementById('logErrorCheck').addEventListener('change', filterLogs);
+document.getElementById('logDebugCheck').addEventListener('change', filterLogs);
+
+function filterLogs() {
+    const logElement = document.getElementById('server-logs');
+    const originalLogs = logElement.getAttribute('data-original-logs') || logElement.textContent;
+    
+    // Store original logs if not already stored
+    if (!logElement.getAttribute('data-original-logs')) {
+        logElement.setAttribute('data-original-logs', originalLogs);
+    }
+    
+    const showInfo = document.getElementById('logInfoCheck').checked;
+    const showWarning = document.getElementById('logWarningCheck').checked;
+    const showError = document.getElementById('logErrorCheck').checked;
+    const showDebug = document.getElementById('logDebugCheck').checked;
+    
+    // Split logs by line and filter
+    const lines = originalLogs.split('\n');
+    const filteredLines = lines.filter(line => {
+        const lowerLine = line.toLowerCase();
+        if (!showInfo && lowerLine.includes(' info ')) return false;
+        if (!showWarning && lowerLine.includes(' warning ')) return false;
+        if (!showError && lowerLine.includes(' error ')) return false;
+        if (!showDebug && lowerLine.includes(' debug ')) return false;
+        return true;
+    });
+    
+    logElement.textContent = filteredLines.join('\n');
+}
+</script>
+{% endblock %}
