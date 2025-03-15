@@ -7,27 +7,44 @@ from web.monitoring import bp as monitoring_bp
 from services.vector_store import init_vector_store
 
 # Configure logging
+# Determine if we're in a production environment
+is_production = bool(os.environ.get("REPL_DEPLOYMENT", False))
+log_level = logging.INFO if is_production else logging.DEBUG
+log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+# Configure root logger
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=log_level,
+    format=log_format,
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('app.log', mode='a')
+        logging.StreamHandler(),  # Always log to console
     ]
 )
 
-# Make sure all loggers output to both console and file
-for handler in logging.getLogger().handlers:
-    handler.setLevel(logging.DEBUG)
+# Add file handler if not in production
+if not is_production:
+    file_handler = logging.FileHandler('app.log', mode='a')
+    file_handler.setFormatter(logging.Formatter(log_format))
+    file_handler.setLevel(log_level)
+    logging.getLogger().addHandler(file_handler)
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(log_level)
 
-# Ensure all imported modules also log at DEBUG level
-logging.getLogger('api').setLevel(logging.DEBUG)
-logging.getLogger('web').setLevel(logging.DEBUG)
-logging.getLogger('services').setLevel(logging.DEBUG)
+# Ensure all imported modules log at the appropriate level
+logging.getLogger('api').setLevel(log_level)
+logging.getLogger('web').setLevel(log_level)
+logging.getLogger('services').setLevel(log_level)
+
+# In production, set SQLAlchemy and other verbose loggers to WARNING level
+if is_production:
+    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
+    logging.getLogger('werkzeug').setLevel(logging.WARNING)
+else:
+    # In development, we want to see everything
+    logging.getLogger('sqlalchemy').setLevel(logging.INFO)
+    logging.getLogger('werkzeug').setLevel(logging.INFO)
 
 def create_app():
     """Application factory function"""
