@@ -2,90 +2,98 @@
 
 ## Overview
 
-This document describes the automatic backup and persistence system for ChromaDB data in our application. The system is designed to prevent data loss during Replit redeployments and ensure smooth application operation.
+This application implements a robust backup and persistence system for ChromaDB that ensures data is preserved across Replit restarts and deployments. The system uses Replit's Object Storage for cloud persistence while implementing efficient disk space management for the local filesystem.
 
-## Backup Rules
+## Key Features
 
-The backup system follows three simple core rules:
+1. **Automatic Backups**
+   - Automatic backup after document upload if enough time has passed (1 hour interval)
+   - Backup rotation limiting historical backups to 24
+   - Persistence across Replit restarts and deployments
 
-1. **Restore Last State on Start**: When the application starts, it automatically restores the most recent ChromaDB backup from object storage if the local database is missing or older.
+2. **Disk Space Optimization**
+   - Skip local backups during restore when disk space is constrained
+   - Cleanup utilities for both local backups and object storage history
+   - Efficient storage management to prevent filling quotas
 
-2. **Save After Important Operations**: The system automatically creates a backup after document uploads when sufficient time has passed since the last backup (currently set to 1 hour).
+3. **Monitoring and Recovery**
+   - Automatic recovery from cloud storage on startup
+   - Detailed logging of all backup/restore operations
+   - Separate utilities for manual backup and restore
 
-3. **Maintain Backup History**: The system maintains a history of backups (maximum 24) with automatic rotation of older backups.
+## Usage
 
-## Key Components
+### Automatic Operation
 
-### ChromaObjectStorage (utils/object_storage.py)
+The system automatically:
+- Restores from object storage on application startup
+- Backs up after document uploads (if interval passed)
+- Rotates backups to prevent excessive storage usage
 
-This class handles all interactions with Replit Object Storage:
+### Manual Backup/Restore
 
-- **Backup**: Copies the local ChromaDB directory to object storage
-- **Restore**: Retrieves ChromaDB data from object storage to local filesystem
-- **Sync**: Bidirectional synchronization based on timestamps
-- **Rotation**: Maintains a limited number of historical backups (24)
-
-### VectorStore (services/vector_store.py)
-
-The VectorStore class integrates with the backup system:
-
-- **Scheduling**: After document uploads, it schedules backups based on a time interval
-- **Execution**: Performs the actual backup operation when needed
-- **State Management**: Tracks when backups are needed
-
-## Storage Structure
-
-Data in Replit Object Storage is organized as follows:
-
-- **Current Files**: `chromadb/[filename]` - Latest versions of all ChromaDB files
-- **History**: `chromadb/history/[timestamp]/[filename]` - Historical versions for recovery
-- **Manifest**: `chromadb/manifest.json` - Information about the most recent backup
-
-## Backup Interval
-
-- The system waits **1 hour** between backups to prevent excessive storage operations
-- This interval is defined in `VectorStore._backup_interval`
-
-## Historical Backup Management
-
-- Maximum 24 historical backups are maintained
-- Older backups are automatically deleted during rotation
-- The rotation happens immediately after a new backup is created
-
-## Manual Operations
-
-Several utility scripts are available for manual operations:
-
-1. **utils/object_storage.py**: CLI tool for backup, restore, and sync operations
-2. **utils/clear_history_backups.py**: Utility to clear all historical backups
-
-## Recovery Process
-
-If database loss occurs:
-
-1. Application will automatically detect missing or outdated local database
-2. It will restore from the most recent object storage backup on startup
-3. If automatic recovery fails, manual restoration can be performed using the CLI tools
-
-## Disk Space Management
-
-The system includes features to handle disk quota limitations:
-
-1. **Skip Local Backup Option**: When restoring, local backups can be skipped to conserve disk space
-2. **Automatic Recovery**: If disk quota errors occur during restore, the system attempts recovery by skipping local backups
-3. **CLI Support**: The command-line tool supports a `--skip-backup` flag for constrained environments
-4. **Error Resilience**: Graceful error handling with detailed logging helps diagnose space issues
-
-Example CLI usage in disk-constrained environments:
 ```bash
+# Manually trigger backup to object storage
+python utils/object_storage.py backup
+
+# Restore from object storage (with local backup)
+python utils/object_storage.py restore
+
+# Restore without creating local backup (for disk-constrained environments)
 python utils/object_storage.py restore --skip-backup
 ```
 
-## Monitoring
+### Cleaning Up
 
-Backup operations are logged with detailed information:
-- Success/failure status
-- Timestamp
-- Files affected
-- Rotation statistics
-- Disk space diagnostics
+```bash
+# Clean up local backup directories (keep most recent)
+python utils/clean_local_backups.py
+
+# Keep more than 1 recent backup
+python utils/clean_local_backups.py --keep 3
+
+# Clean up historical backups in object storage
+python utils/delete_backup_history.py --force
+```
+
+## Technical Details
+
+### Backup Locations
+
+- **Local ChromaDB**: `/home/runner/data/chromadb/`
+- **Local Backups**: `/home/runner/data/chromadb_local_backup_*`
+- **Object Storage**: `chromadb/` prefix in Replit Object Storage
+- **History Backups**: `chromadb/history/YYYYMMDD_HHMMSS/` in Object Storage
+
+### Backup Rotation
+
+The system maintains up to 24 historical backups in object storage and automatically cleans up older backups during the backup process.
+
+### Disk Space Management
+
+Each ChromaDB backup is approximately 152MB. The system uses strategies to manage disk space:
+
+1. Skip creating local backups during restore operations with `--skip-backup`
+2. Clean local backups with `clean_local_backups.py`
+3. Limit historical backups to 24 through automatic rotation
+
+## Troubleshooting
+
+1. **Disk Quota Issues**:
+   - Run `python utils/clean_local_backups.py` to remove old local backups
+   - Use `--skip-backup` when restoring to avoid creating additional local backups
+
+2. **Data Not Persisting Across Restarts**:
+   - Check if Object Storage is enabled for your Replit
+   - Verify `main.py` initializes `VectorStore` which triggers the restore
+
+3. **Excessive Storage Usage**:
+   - Run `python utils/delete_backup_history.py --force` to clear old backups
+   - Check if backup rotation is working properly in the logs
+
+## Implementation Files
+
+- `utils/object_storage.py`: Primary backup/restore functionality
+- `utils/clean_local_backups.py`: Local backup cleanup utility
+- `utils/delete_backup_history.py`: Object storage history cleanup
+- `services/vector_store.py`: Integrates backup system with ChromaDB
