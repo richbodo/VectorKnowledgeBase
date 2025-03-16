@@ -64,7 +64,7 @@ class VectorStore:
     
     # Class-level variables for backup tracking
     _last_backup_time = None
-    _backup_interval = 300  # 5 minutes in seconds
+    _backup_interval = 3600  # 1 hour in seconds
     _pending_backup = False
 
     def __init__(self):
