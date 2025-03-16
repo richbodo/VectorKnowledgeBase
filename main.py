@@ -114,11 +114,32 @@ def create_app():
                 # Sync ChromaDB with Replit Object Storage before initializing
                 logger.info("Syncing ChromaDB with Replit Object Storage...")
                 chroma_storage = get_chroma_storage()
-                sync_success, sync_message = chroma_storage.sync_with_object_storage()
-                if sync_success:
-                    logger.info(f"ChromaDB sync successful: {sync_message}")
-                else:
-                    logger.warning(f"ChromaDB sync issue: {sync_message}")
+                
+                # Check if we need to modify the sync behavior due to disk space constraints
+                try:
+                    # Use skip_local_backup=True in the restore call inside sync method
+                    # This helps avoid disk quota issues in constrained environments
+                    sync_success, sync_message = chroma_storage.sync_with_object_storage()
+                    if sync_success:
+                        logger.info(f"ChromaDB sync successful: {sync_message}")
+                    else:
+                        # If we encounter a disk quota error, try to recover by skipping local backup
+                        if "Disk quota exceeded" in sync_message:
+                            logger.warning("Disk quota exceeded during sync, attempting recovery...")
+                            # For the specific case where we're restoring, try direct restore without backup
+                            if "restore" in sync_message.lower():
+                                logger.info("Attempting direct restore without local backup...")
+                                restore_success, restore_message = chroma_storage.restore_from_object_storage(skip_local_backup=True)
+                                if restore_success:
+                                    logger.info(f"Direct restore successful: {restore_message}")
+                                    sync_success = True
+                                    sync_message = f"Recovery successful: {restore_message}"
+                                else:
+                                    logger.error(f"Direct restore failed: {restore_message}")
+                            
+                        logger.warning(f"ChromaDB sync issue: {sync_message}")
+                except Exception as sync_error:
+                    logger.error(f"Error during ChromaDB sync: {str(sync_error)}", exc_info=True)
                 
                 logger.info("Starting vector store initialization...")
                 init_vector_store()
