@@ -47,8 +47,7 @@ def index():
                          user_info=user_info)
 
 @bp.route('/diagnostics', methods=['GET'])
-# Temporarily disable auth for testing
-# @auth_required
+@http_auth_required
 def diagnostics():
     """Render the unified diagnostics page"""
     vector_store = VectorStore.get_instance()
@@ -155,8 +154,7 @@ def diagnostics():
                          user_info=user_info)
 
 @bp.route('/debug-info', methods=['GET'])
-# Temporarily disable auth for testing
-# @auth_required
+@http_auth_required
 def get_debug_info():
     """Return debug information as JSON for AJAX updates"""
     vector_store = VectorStore.get_instance()
@@ -249,30 +247,48 @@ def get_debug_info():
     
     return jsonify(debug_info)
 
-@bp.route('/login', methods=['GET'])
+@bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """Handle login through Replit Auth"""
-    # Check if user is already authenticated
-    if is_authenticated():
+    """Handle login through HTTP Basic Auth"""
+    # Check if authentication through session
+    from web.http_auth import session_authenticated, check_auth, set_session_auth
+    
+    # If already authenticated through HTTP Auth, redirect to index
+    if session_authenticated():
         return redirect(url_for('web.index'))
+    
+    error = None
+    
+    # Handle POST request for form-based login
+    if request.method == 'POST':
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
         
-    # Get login URL
-    login_url = get_login_url()
+        if check_auth(username, password):
+            # Set session as authenticated
+            set_session_auth(True)
+            flash("Login successful", "success")
+            return redirect(url_for('web.index'))
+        else:
+            error = "Invalid username or password"
     
-    # If login_url is the same as current URL, we're in a redirect loop
-    if login_url == request.path or login_url == "/login":
-        # Provide a fallback login page
-        return render_template('login.html', 
-                              error="Authentication system is temporarily unavailable. Please try again later.",
-                              is_authenticated=False,
-                              user_info=None)
-    
-    return redirect(login_url)
+    # Render login form
+    return render_template('login.html', 
+                          error=error,
+                          is_authenticated=False,
+                          user_info=None)
 
 @bp.route('/logout', methods=['GET'])
+@http_auth_required
 def logout():
-    """Handle logout"""
+    """Handle logout for both Replit Auth and HTTP Auth"""
+    # Clear Replit Auth if it was being used
     handle_logout()
+    
+    # Clear HTTP Auth session
+    from web.http_auth import set_session_auth
+    set_session_auth(False)
+    
     flash("You have been logged out successfully", "success")
     return redirect(url_for('web.index'))
 

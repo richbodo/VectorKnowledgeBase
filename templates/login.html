@@ -15,12 +15,25 @@
                     </div>
                     {% endif %}
                     
-                    <p>You need to log in to access this application. Please use Replit authentication to continue.</p>
+                    <p class="mb-4">Please log in to access the PDF Vector Knowledge Base application.</p>
                     
-                    <div class="d-grid gap-2 mt-4">
-                        <a href="/" class="btn btn-primary">Try Again</a>
-                        <a href="{{ url_for('web.index') }}" class="btn btn-outline-secondary">Return to Home</a>
-                    </div>
+                    <form method="POST" action="{{ url_for('web.login') }}">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" required autofocus>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                            <small class="form-text text-muted mt-2">
+                                Default credentials: admin / changeme123 (only for development)
+                            </small>
+                        </div>
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">Sign In</button>
+                            <a href="{{ url_for('web.index') }}" class="btn btn-outline-secondary">Return to Home</a>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
