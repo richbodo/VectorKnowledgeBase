@@ -64,9 +64,9 @@ def delete_backup_history(force: bool = False) -> Tuple[List[str], int]:
         all_files = storage.list_files()
         logger.info(f"Found {len(all_files)} total files in object storage")
         
-        # Identify backup history files (files with backup_ prefix)
-        history_files = [f for f in all_files if '/backup_' in f]
-        current_files = [f for f in all_files if '/backup_' not in f]
+        # Identify all history directory files
+        history_files = [f for f in all_files if '/history/' in f]
+        current_files = [f for f in all_files if '/history/' not in f]
         
         logger.info(f"Found {len(history_files)} backup history files")
         logger.info(f"Found {len(current_files)} current database files")

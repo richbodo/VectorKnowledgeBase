@@ -77,7 +77,13 @@ def delete_history_files(history_files: List[str], force: bool = False) -> Tuple
     total_size = 0
     
     # Get client directly for file size checks
-    client = storage._get_client()
+    try:
+        client = storage._get_client()
+        logger.info(f"Successfully got storage client")
+    except Exception as e:
+        logger.error(f"Failed to get storage client: {e}")
+        print(f"ERROR: Could not access storage client: {e}")
+        return 0, 0
     
     # Check with the user unless force is specified
     if not force:

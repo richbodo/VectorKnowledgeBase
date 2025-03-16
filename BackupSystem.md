@@ -52,8 +52,17 @@ python utils/clean_local_backups.py
 # Keep more than 1 recent backup
 python utils/clean_local_backups.py --keep 3
 
-# Clean up historical backups in object storage
+# Legacy method (not recommended)
 python utils/delete_backup_history.py --force
+
+# NEW RECOMMENDED METHOD: Clean up history with more control
+python utils/simple_cleanup.py --dry-run      # Preview what would be deleted
+python utils/simple_cleanup.py --force        # Delete old backups, keep 5 most recent
+python utils/simple_cleanup.py --force --keep 10  # Keep more recent backups
+python utils/simple_cleanup.py --force --limit 50  # Delete in small batches
+
+# Monitor cleanup progress and storage usage
+python utils/monitor_cleanup.py
 ```
 
 ## Technical Details
@@ -88,12 +97,15 @@ Each ChromaDB backup is approximately 152MB. The system uses strategies to manag
    - Verify `main.py` initializes `VectorStore` which triggers the restore
 
 3. **Excessive Storage Usage**:
-   - Run `python utils/delete_backup_history.py --force` to clear old backups
+   - Run `python utils/simple_cleanup.py --force` to clear old backups (recommended)
+   - For more control, use options like `--keep-recent` and `--limit`
    - Check if backup rotation is working properly in the logs
 
 ## Implementation Files
 
 - `utils/object_storage.py`: Primary backup/restore functionality
 - `utils/clean_local_backups.py`: Local backup cleanup utility
-- `utils/delete_backup_history.py`: Object storage history cleanup
+- `utils/simple_cleanup.py`: Modern storage history cleanup (recommended)
+- `utils/monitor_cleanup.py`: Track cleanup progress and storage usage
+- `utils/STORAGE_CLEANUP_README.md`: Detailed cleanup documentation
 - `services/vector_store.py`: Integrates backup system with ChromaDB
