@@ -62,12 +62,16 @@ class CustomEmbeddingFunction(EmbeddingFunction):
 class VectorStore:
     _instance = None
     
-    # Class-level variables for backup tracking
-    _last_backup_time = None
-    _backup_interval = 3600  # 1 hour in seconds
-    _pending_backup = False
+    # Class-level constants
+    BACKUP_INTERVAL = 3600  # 1 hour in seconds
+    
+    # Instance variables will be initialized in __init__
 
     def __init__(self):
+        # Initialize instance-level backup tracking variables
+        self._last_backup_time = None
+        self._pending_backup = False
+        
         try:
             abs_path = os.path.abspath(CHROMA_DB_PATH)
             cwd = os.getcwd()
@@ -438,11 +442,11 @@ class VectorStore:
             current_time = time.time()
             
             # Set pending backup flag
-            self.__class__._pending_backup = True
+            self._pending_backup = True
             
             # If first backup or enough time has passed, do immediate backup
-            if (self.__class__._last_backup_time is None or 
-                    current_time - self.__class__._last_backup_time >= self.__class__._backup_interval):
+            if (self._last_backup_time is None or 
+                    current_time - self._last_backup_time >= self.BACKUP_INTERVAL):
                 self._execute_backup()
         except Exception as e:
             logger.error(f"Error scheduling backup: {str(e)}")
@@ -457,8 +461,8 @@ class VectorStore:
             
             if success:
                 logger.info(f"Write-triggered backup successful: {message}")
-                self.__class__._last_backup_time = time.time()
-                self.__class__._pending_backup = False
+                self._last_backup_time = time.time()
+                self._pending_backup = False
             else:
                 logger.error(f"Write-triggered backup failed: {message}")
         except Exception as e:
