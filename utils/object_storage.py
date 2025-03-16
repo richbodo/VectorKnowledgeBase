@@ -143,9 +143,14 @@ class ChromaObjectStorage:
             logger.error(f"Failed to backup to Object Storage: {str(e)}", exc_info=True)
             return False, str(e)
     
-    def restore_from_object_storage(self) -> Tuple[bool, Optional[str]]:
+    def restore_from_object_storage(self, skip_local_backup: bool = False) -> Tuple[bool, Optional[str]]:
         """
         Restore ChromaDB from Replit Object Storage
+        
+        Args:
+            skip_local_backup: If True, skip creating a local backup before restoring.
+                               This is useful in disk-constrained environments.
+        
         Returns: (success, message)
         """
         if not HAS_OBJECT_STORAGE:
@@ -166,11 +171,16 @@ class ChromaObjectStorage:
             
             logger.info(f"Found backup from {manifest['timestamp']}")
             
-            # Create a backup of current ChromaDB directory if it exists
-            if os.path.exists(CHROMA_DB_PATH):
-                backup_dir = f"{CHROMA_DB_PATH}_local_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                shutil.copytree(CHROMA_DB_PATH, backup_dir)
-                logger.info(f"Created local backup at {backup_dir}")
+            # Create a backup of current ChromaDB directory if it exists and backup is not skipped
+            if os.path.exists(CHROMA_DB_PATH) and not skip_local_backup:
+                try:
+                    backup_dir = f"{CHROMA_DB_PATH}_local_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                    shutil.copytree(CHROMA_DB_PATH, backup_dir)
+                    logger.info(f"Created local backup at {backup_dir}")
+                except OSError as e:
+                    # If we can't create a backup due to disk quota or other OS error,
+                    # log it but continue with the restore
+                    logger.warning(f"Could not create local backup: {str(e)}. Continuing with restore.")
                 
             # Create ChromaDB directory if it doesn't exist
             os.makedirs(CHROMA_DB_PATH, exist_ok=True)
@@ -294,7 +304,7 @@ class ChromaObjectStorage:
             # If storage exists but not local, restore from storage
             if storage_db_exists and (not local_db_exists or not local_sqlite_exists):
                 logger.info("ChromaDB exists in Object Storage but not locally, restoring")
-                success, message = self.restore_from_object_storage()
+                success, message = self.restore_from_object_storage(skip_local_backup=True)
                 return success, f"Initial restore: {message}"
                 
             # Both exist, check timestamps to determine which is newer
@@ -320,7 +330,7 @@ class ChromaObjectStorage:
                 # If storage is newer, restore from storage
                 elif storage_timestamp > local_timestamp:
                     logger.info("Storage ChromaDB is newer, restoring from Object Storage")
-                    success, message = self.restore_from_object_storage()
+                    success, message = self.restore_from_object_storage(skip_local_backup=True)
                     return success, f"Sync (storage to local): {message}"
                     
                 # If timestamps match, no action needed
@@ -354,6 +364,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ChromaDB Object Storage CLI")
     parser.add_argument('action', choices=['backup', 'restore', 'sync', 'list'], 
                       help='Action to perform')
+    parser.add_argument('--skip-backup', action='store_true',
+                      help='Skip local backup when restoring (for disk-constrained environments)')
     
     args = parser.parse_args()
     
@@ -369,7 +381,9 @@ if __name__ == "__main__":
             
     elif args.action == 'restore':
         print("==== Restoring ChromaDB from Object Storage ====")
-        success, message = storage.restore_from_object_storage()
+        if args.skip_backup:
+            print("⚠️ Skipping local backup due to --skip-backup flag")
+        success, message = storage.restore_from_object_storage(skip_local_backup=args.skip_backup)
         if success:
             print(f"✅ {message}")
         else:
