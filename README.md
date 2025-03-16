@@ -1,6 +1,8 @@
 # PDF Knowledge Base
 
-A Flask-powered PDF document processing service that enables semantic search and content retrieval using advanced vector database technologies and OpenAI GPT integration.
+Vector DB and API for use with OpenAI custom GPTs to hook into with GPT Actions written in python using flask.  This is a simple intro to RAG LLM coding for me that allowed me to enable my custom GPT to access a library of hundreds of research papers that I have access to but the GPT couldn't find as easily.  
+
+I implmented on Replit, using a bunch of other tools.  It should be possible to re-use this there.  My notes on this setup are [here](http://richbodo.pbworks.com/w/page/160057005/LLM%20RAG%20Intro), and my upload and API test tool is [here](https://github.com/richbodo/snh_bridge_test).
 
 ## Table of Contents
 
@@ -97,6 +99,8 @@ For detailed API documentation including authentication methods, endpoints, and 
    - Check the /monitoring/database-diagnostic endpoint
 
 ### Deploying on Linux Server
+
+This is just some auto-generated stuff that Claude wrote - I haven't deployed this on bare metal.
 
 1. **Clone the Repository**
    ```bash
