@@ -22,11 +22,19 @@ import argparse
 from typing import List, Tuple
 from datetime import datetime
 
-# Configure logging
+# Configure logging to a file instead of stdout
+log_file = 'delete_backup_history.log'
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename=log_file,
+    filemode='w'
 )
+# Add a null handler to avoid warnings
+console = logging.StreamHandler()
+console.setLevel(logging.CRITICAL)  # Only critical logs to console
+logging.getLogger('').addHandler(console)
+
 logger = logging.getLogger(__name__)
 
 # Add parent directory to path for imports
@@ -52,18 +60,23 @@ def delete_backup_history(force: bool = False) -> Tuple[List[str], int]:
     storage = get_chroma_storage()
     
     # List all files in storage
-    all_files = storage.list_files()
-    logger.info(f"Found {len(all_files)} total files in object storage")
-    
-    # Identify backup history files (files with backup_ prefix)
-    history_files = [f for f in all_files if '/backup_' in f]
-    current_files = [f for f in all_files if '/backup_' not in f]
-    
-    logger.info(f"Found {len(history_files)} backup history files")
-    logger.info(f"Found {len(current_files)} current database files")
-    
-    if not history_files:
-        logger.info("No backup history files to delete.")
+    try:
+        all_files = storage.list_files()
+        logger.info(f"Found {len(all_files)} total files in object storage")
+        
+        # Identify backup history files (files with backup_ prefix)
+        history_files = [f for f in all_files if '/backup_' in f]
+        current_files = [f for f in all_files if '/backup_' not in f]
+        
+        logger.info(f"Found {len(history_files)} backup history files")
+        logger.info(f"Found {len(current_files)} current database files")
+        
+        if not history_files:
+            logger.info("No backup history files to delete.")
+            return [], 0
+    except Exception as e:
+        logger.error(f"Error listing files: {str(e)}")
+        print(f"ERROR: Could not list files from storage: {str(e)}")
         return [], 0
     
     # Calculate size information if available
@@ -103,27 +116,38 @@ def delete_backup_history(force: bool = False) -> Tuple[List[str], int]:
     deleted_files = []
     saved_bytes = 0
     
+    # Get client reference safely
+    client = getattr(storage, '_client', None)
+    if not client:
+        logger.error("Cannot access storage client")
+        return [], 0
+        
     for file_path in history_files:
         try:
             # Get file size before deletion if possible
             try:
-                file_size = storage._client.get_object_size(file_path)
-                saved_bytes += file_size
+                if hasattr(client, 'get_object_size'):
+                    file_size = client.get_object_size(file_path)
+                    saved_bytes += file_size
+                else:
+                    file_size = 0
             except:
                 file_size = 0
             
             # Delete the file
-            storage._client.delete(file_path)
-            deleted_files.append(file_path)
-            
-            logger.info(f"Deleted {file_path} ({file_size / (1024):.2f} KB)")
+            if hasattr(client, 'delete'):
+                client.delete(file_path)
+                deleted_files.append(file_path)
+                logger.info(f"Deleted {file_path} ({file_size / (1024):.2f} KB)")
+            else:
+                logger.error(f"Client has no delete method, skipping {file_path}")
         except Exception as e:
             logger.error(f"Failed to delete {file_path}: {str(e)}")
     
     # Calculate space saved
-    if size_before > 0:
+    if size_before > 0 and hasattr(client, 'get_object_size'):
         try:
-            size_after = sum(storage._client.get_object_size(f) for f in current_files)
+            size_after = sum(client.get_object_size(f) for f in current_files)
             logger.info(f"New storage usage: {size_after / (1024*1024):.2f} MB")
             logger.info(f"Saved approximately {(size_before - size_after) / (1024*1024):.2f} MB")
         except Exception as e:
@@ -149,23 +173,30 @@ def main():
     print(f"\n=== ChromaDB Backup History Cleanup ({timestamp}) ===\n")
     
     try:
-        print("*" * 80)
-        print("STARTING DELETE BACKUP HISTORY OPERATION")
-        print("*" * 80)
+        print("\n" + "#" * 80)
+        print("#" + " " * 78 + "#")
+        print("#" + " STARTING DELETE BACKUP HISTORY OPERATION".center(78) + "#")
+        print("#" + " " * 78 + "#")
+        print("#" * 80 + "\n")
+        
         deleted_files, saved_bytes = delete_backup_history(force=args.force)
         
-        print("*" * 80)
+        print("\n" + "#" * 80)
+        print("#" + " " * 78 + "#")
         if deleted_files:
-            print(f"\nSUCCESS: Deleted {len(deleted_files)} backup history files")
-            print(f"STORAGE: Freed approximately {saved_bytes / (1024*1024):.2f} MB of storage space")
-            print("\nCurrent database files were preserved and remain accessible.")
+            print("#" + f" SUCCESS: Deleted {len(deleted_files)} backup history files".center(78) + "#")
+            print("#" + f" STORAGE: Freed approximately {saved_bytes / (1024*1024):.2f} MB of storage space".center(78) + "#")
+            print("#" + " Current database files were preserved and remain accessible.".center(78) + "#")
+            print("#" + " " * 78 + "#")
+            print("#" + " Files deleted:".center(78) + "#")
             for f in deleted_files[:5]:
-                print(f"  - {f}")
+                print("#" + f"  - {f}".center(78) + "#")
             if len(deleted_files) > 5:
-                print(f"  - ... and {len(deleted_files) - 5} more")
+                print("#" + f"  - ... and {len(deleted_files) - 5} more".center(78) + "#")
         else:
-            print("\nINFO: No backup history files were deleted.")
-        print("*" * 80)
+            print("#" + " INFO: No backup history files were deleted.".center(78) + "#")
+        print("#" + " " * 78 + "#")
+        print("#" * 80)
             
     except Exception as e:
         logger.error(f"Error during backup history deletion: {str(e)}", exc_info=True)
