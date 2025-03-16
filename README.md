@@ -23,7 +23,7 @@ A Flask-powered PDF document processing service that enables semantic search and
 - **Vector Database Storage**: Store and retrieve document embeddings efficiently
 - **API Access**: Programmatically upload documents and query the knowledge base
 - **Web Interface**: User-friendly interface for uploading and querying documents
-- **Persistence**: Robust backup and restore functionality for vector database
+- **Persistence**: Robust backup and restore functionality with automatic rotation
 - **Monitoring**: Built-in diagnostic tools for system health and database stats
 
 ## Quick Start
@@ -56,7 +56,8 @@ For detailed API documentation including authentication methods, endpoints, and 
 - **PyMuPDF**: PDF text extraction with optimized memory usage
 - **OpenAI**: Text embeddings and query processing
 - **ChromaDB**: Vector database for semantic search
-- **Object Storage**: Persistent storage for ChromaDB data
+- **Object Storage**: Persistent storage for ChromaDB data with automatic backup rotation
+- **Backup System**: For details, see [BackupSystem.md](BackupSystem.md)
 
 ## Deployment
 
@@ -74,7 +75,8 @@ For detailed API documentation including authentication methods, endpoints, and 
 
 4. **Configure Storage**
    - Ensure persistent storage is enabled
-   - For production, consider enabling Replit's Object Storage
+   - For production, enable Replit's Object Storage
+   - The backup system automatically manages data persistence (see BackupSystem.md)
 
 5. **Run the Application**
    - Use the "Run" button in Replit
