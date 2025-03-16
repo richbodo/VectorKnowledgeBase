@@ -1,16 +1,22 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card bg-dark border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h4 class="mb-0">Error</h4>
+            <div class="card bg-dark mb-4">
+                <div class="card-header text-white bg-danger">
+                    <h4 class="mb-0">Error {{ error.code }}</h4>
                 </div>
                 <div class="card-body">
-                    <p class="card-text">{{ error }}</p>
-                    <a href="/" class="btn btn-outline-light">Return Home</a>
+                    <h5 class="card-title">{{ error.name }}</h5>
+                    <p class="card-text">{{ error.description }}</p>
+                    
+                    <hr>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="/" class="btn btn-primary">Return to Home</a>
+                    </div>
                 </div>
             </div>
         </div>
