@@ -124,10 +124,10 @@ def create_app():
                         logger.info(f"ChromaDB sync successful: {sync_message}")
                     else:
                         # If we encounter a disk quota error, try to recover by skipping local backup
-                        if "Disk quota exceeded" in sync_message:
+                        if sync_message and "Disk quota exceeded" in sync_message:
                             logger.warning("Disk quota exceeded during sync, attempting recovery...")
                             # For the specific case where we're restoring, try direct restore without backup
-                            if "restore" in sync_message.lower():
+                            if sync_message and "restore" in sync_message.lower():
                                 logger.info("Attempting direct restore without local backup...")
                                 restore_success, restore_message = chroma_storage.restore_from_object_storage(skip_local_backup=True)
                                 if restore_success:
