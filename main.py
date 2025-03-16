@@ -6,6 +6,7 @@ from web.routes import bp as web_bp
 from web.monitoring import bp as monitoring_bp
 from services.vector_store import init_vector_store
 from utils.object_storage import get_chroma_storage
+from utils.privacy_log_handler import PrivacyLogFilter
 
 # Configure logging
 # Determine if we're in a production environment
@@ -13,25 +14,38 @@ is_production = bool(os.environ.get("REPL_DEPLOYMENT", False))
 log_level = logging.DEBUG  # Use DEBUG level for both production and development
 log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
+# Create privacy filter for logs
+privacy_filter = PrivacyLogFilter()
+
 # Configure root logger
-logging.basicConfig(
-    level=log_level,
-    format=log_format,
-    handlers=[
-        logging.StreamHandler(),  # Always log to console
-    ]
-)
+root_logger = logging.getLogger()
+root_logger.setLevel(log_level)
+
+# Clear any existing handlers
+for handler in root_logger.handlers[:]:
+    root_logger.removeHandler(handler)
+
+# Create console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter(log_format))
+console_handler.setLevel(log_level)
+console_handler.addFilter(privacy_filter)  # Add privacy filter to console handler
+root_logger.addHandler(console_handler)
 
 # Add file handler if not in production
 if not is_production:
     file_handler = logging.FileHandler('app.log', mode='a')
     file_handler.setFormatter(logging.Formatter(log_format))
     file_handler.setLevel(log_level)
-    logging.getLogger().addHandler(file_handler)
+    file_handler.addFilter(privacy_filter)  # Add privacy filter to file handler
+    root_logger.addHandler(file_handler)
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
 logger.setLevel(log_level)
+
+# Log that privacy filter has been applied
+logger.info("Privacy log filter applied to all log handlers")
 
 # Ensure all imported modules log at the appropriate level
 logging.getLogger('api').setLevel(log_level)
@@ -76,21 +90,15 @@ def create_app():
         logger.info("=== New Request ===")
         logger.info(f"Method: {request.method}")
         logger.info(f"Path: {request.path}")
-        logger.info(f"Headers: {dict(request.headers)}")
         
-        # Log form data for POST requests
-        if request.method == 'POST':
-            if request.is_json:
-                logger.info(f"JSON Data: {request.get_json(silent=True)}")
-            elif request.form:
-                logger.info(f"Form Data: {dict(request.form)}")
-                
-        # Log files if present
-        if request.files:
-            logger.info(f"Files: {list(request.files.keys())}")
-            for file_key in request.files:
-                file = request.files[file_key]
-                logger.info(f"File: {file_key}, Filename: {file.filename}, Content Type: {file.content_type}")
+        # Create a copy of headers and remove potentially sensitive ones before logging
+        safe_headers = dict(request.headers)
+        sensitive_headers = ['Authorization', 'Cookie', 'X-API-Key']
+        for header in sensitive_headers:
+            if header in safe_headers:
+                safe_headers[header] = '[REDACTED]'
+        
+        logger.info(f"Headers: {safe_headers}")
 
     # Defer vector store initialization until first request
     @app.before_request
@@ -115,20 +123,6 @@ def create_app():
                 logger.info("Starting vector store initialization...")
                 init_vector_store()
                 logger.info("Vector store initialized successfully")
-                
-                # Backup to object storage after successful initialization
-                logger.info("Backing up initialized ChromaDB to Object Storage...")
-                backup_success, backup_message = chroma_storage.backup_to_object_storage()
-                if backup_success:
-                    logger.info(f"ChromaDB backup successful: {backup_message}")
-                    # Update the VectorStore's last_backup_time
-                    from services.vector_store import VectorStore
-                    import time
-                    VectorStore._last_backup_time = time.time()
-                    logger.info(f"Updated VectorStore last_backup_time to {VectorStore._last_backup_time}")
-                else:
-                    logger.warning(f"ChromaDB backup issue: {backup_message}")
-                
                 app._vector_store_initialized = True
             except Exception as e:
                 logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
@@ -188,30 +182,7 @@ def create_app():
     for rule in app.url_map.iter_rules():
         logger.info(f"Route: {rule.rule} Methods: {rule.methods}")
 
-    # Register shutdown hook for final backup
-    @app.teardown_appcontext
-    def shutdown_backup(exception=None):
-        """Perform final backup when application context is being torn down"""
-        try:
-            logger.info("=== Application shutting down, performing final backup ===")
-            from services.vector_store import VectorStore
-            
-            # Check if vector store was initialized
-            if hasattr(app, '_vector_store_initialized') and app._vector_store_initialized:
-                # Get vector store instance
-                vector_store = VectorStore.get_instance()
-                
-                # Check if there's a pending backup
-                if hasattr(VectorStore, '_pending_backup') and VectorStore._pending_backup:
-                    logger.info("Pending backup detected, executing final backup")
-                    vector_store._execute_backup()
-                    logger.info("Final backup completed successfully")
-                else:
-                    logger.info("No pending backup, skipping final backup")
-            else:
-                logger.info("Vector store was not initialized, skipping final backup")
-        except Exception as e:
-            logger.error(f"Error during shutdown backup: {str(e)}")
+    # We've removed the shutdown backup hook as it's not needed with our improved backup system
 
     logger.info("Flask application configured successfully")
     return app

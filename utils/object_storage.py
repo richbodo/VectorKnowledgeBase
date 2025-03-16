@@ -116,7 +116,11 @@ class ChromaObjectStorage:
                     history_key = f"{self.storage_prefix}history/{timestamp}/{filename}"
                     logger.info(f"Creating history version at {history_key}")
                     self.client.upload_from_filename(history_key, os.path.abspath(file_path))
-                    
+            
+            # After successful backup, rotate to maintain max backups
+            kept, deleted = self._rotate_backups(max_backups=24)
+            logger.info(f"Backup rotation: kept {kept} backups, deleted {deleted} old files")
+            
             # Create a manifest file with timestamp and file list
             manifest = {
                 "timestamp": timestamp,
@@ -187,6 +191,66 @@ class ChromaObjectStorage:
         except Exception as e:
             logger.error(f"Failed to restore from Object Storage: {str(e)}", exc_info=True)
             return False, str(e)
+    
+    def _rotate_backups(self, max_backups=24) -> Tuple[int, int]:
+        """
+        Limit the number of historical backups by removing older ones.
+        
+        Args:
+            max_backups: Maximum number of historical backups to keep
+        
+        Returns:
+            Tuple[int, int]: (kept_count, deleted_count)
+        """
+        if not HAS_OBJECT_STORAGE:
+            logger.warning("Object Storage not available, skipping backup rotation")
+            return 0, 0
+            
+        try:
+            # List all history backups
+            history_pattern = f"{self.storage_prefix}history/"
+            history_objects = list(self.client.list(prefix=history_pattern))
+            
+            # Group objects by timestamp directory
+            backup_dirs = {}
+            for obj in history_objects:
+                # Extract the timestamp directory from the path
+                # Format: chromadb/history/YYYYMMDD_HHMMSS/filename
+                path = obj.key if hasattr(obj, 'key') else str(obj)
+                parts = path.split('/')
+                if len(parts) >= 3:
+                    # Get the timestamp directory
+                    timestamp_dir = parts[2]  # YYYYMMDD_HHMMSS
+                    if timestamp_dir not in backup_dirs:
+                        backup_dirs[timestamp_dir] = []
+                    backup_dirs[timestamp_dir].append(path)
+            
+            # Sort directories by timestamp (newest first)
+            sorted_dirs = sorted(backup_dirs.keys(), reverse=True)
+            logger.info(f"Found {len(sorted_dirs)} backup directories in history")
+            
+            if len(sorted_dirs) <= max_backups:
+                logger.info(f"No rotation needed, only {len(sorted_dirs)} backups exist (limit: {max_backups})")
+                return len(sorted_dirs), 0
+            
+            # Keep max_backups, delete the rest
+            to_keep = sorted_dirs[:max_backups]
+            to_delete = sorted_dirs[max_backups:]
+            
+            deleted_count = 0
+            # Delete older backups
+            for old_dir in to_delete:
+                logger.info(f"Removing old backup: {old_dir}")
+                for obj_path in backup_dirs[old_dir]:
+                    self.client.delete(obj_path)
+                    deleted_count += 1
+                    
+            logger.info(f"Backup rotation complete: kept {len(to_keep)}, deleted {deleted_count} objects from {len(to_delete)} old backups")
+            return len(to_keep), deleted_count
+        
+        except Exception as e:
+            logger.error(f"Error during backup rotation: {str(e)}")
+            return 0, 0
     
     def sync_with_object_storage(self) -> Tuple[bool, Optional[str]]:
         """
