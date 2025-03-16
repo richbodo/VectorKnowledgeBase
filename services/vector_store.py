@@ -842,10 +842,10 @@ class VectorStore:
                 
             # Get backup information
             backup_status = {
-                "last_backup_time": datetime.fromtimestamp(self.__class__._last_backup_time).isoformat() if self.__class__._last_backup_time else None,
-                "backup_interval_seconds": self.__class__._backup_interval,
-                "pending_backup": self.__class__._pending_backup,
-                "next_backup_time": datetime.fromtimestamp(self.__class__._last_backup_time + self.__class__._backup_interval).isoformat() if self.__class__._last_backup_time else None
+                "last_backup_time": datetime.fromtimestamp(self._last_backup_time).isoformat() if self._last_backup_time else None,
+                "backup_interval_seconds": self.BACKUP_INTERVAL,
+                "pending_backup": self._pending_backup,
+                "next_backup_time": datetime.fromtimestamp(self._last_backup_time + self.BACKUP_INTERVAL).isoformat() if self._last_backup_time else None
             }
             
             # Get object storage backup information
