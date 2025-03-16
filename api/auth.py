@@ -24,14 +24,19 @@ def require_api_key(f):
 
         api_key = None
 
-        # Check HTTP header first (standard practice)
-        if 'X-API-KEY' in request.headers:
+        # Check for Authorization Bearer token (OpenAI GPT's standard method)
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            api_key = auth_header[7:]  # Remove 'Bearer ' prefix
+            logger.info("API key found in Authorization Bearer header.")
+        # Check HTTP header (standard practice)
+        elif 'X-API-KEY' in request.headers:
             api_key = request.headers.get('X-API-KEY')
-            logger.info("API key found in HTTP header.")
+            logger.info("API key found in X-API-KEY header.")
         else:
-            # Check JSON body parameters (OpenAI's behavior)
-            json_data = request.get_json(silent=True)
-            if json_data := json_data_or_empty(request):
+            # Check JSON body parameters (alternative method)
+            json_data = request.get_json(silent=True) or {}
+            if json_data:
                 if 'X-API-KEY' in json_data:
                     api_key = json_data.get('X-API-KEY')
                     logger.info("API key found in JSON body as 'X-API-KEY'.")
@@ -58,6 +63,7 @@ def require_api_key(f):
 
         # Verify API key matches environment variable
         VKB_API_KEY = os.environ.get("VKB_API_KEY")
+        
         if api_key != VKB_API_KEY:
             logger.warning("Invalid API key provided.")
             return jsonify({"error": "Invalid API key"}), 401
