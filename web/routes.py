@@ -1,12 +1,14 @@
 import logging
-from flask import Blueprint, render_template, request, flash, jsonify
+from flask import Blueprint, render_template, request, flash, jsonify, redirect, url_for, session
 from services.vector_store import VectorStore
 from config import VKB_API_KEY
+from web.auth import auth_required, is_authenticated, get_user_info, get_login_url, handle_logout
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('web', __name__)
 
 @bp.route('/', methods=['GET'])
+@auth_required
 def index():
     """Render the main page"""
     vector_store = VectorStore.get_instance()
@@ -30,14 +32,21 @@ def index():
     debug_info = vector_store.get_debug_info()
     debug_info['document_count'] = doc_count  # Ensure document_count is available
     
+    # Get authentication info for the template
+    is_auth = is_authenticated()
+    user_info = get_user_info() if is_auth else None
+
     return render_template('index.html', 
                          document_count=doc_count,  # Keep for backward compatibility
                          debug_info=debug_info,
                          query=query, 
                          results=results,
-                         api_key=VKB_API_KEY)  # Pass API key to template
+                         api_key=VKB_API_KEY,  # Pass API key to template
+                         is_authenticated=is_auth,
+                         user_info=user_info)
 
 @bp.route('/diagnostics', methods=['GET'])
+@auth_required
 def diagnostics():
     """Render the unified diagnostics page"""
     vector_store = VectorStore.get_instance()
@@ -127,6 +136,10 @@ def diagnostics():
     # Get ChromaDB version info
     chromadb_version = debug_info.get('chromadb_version', 'Unknown')
     
+    # Get authentication info for the template
+    is_auth = is_authenticated()
+    user_info = get_user_info() if is_auth else None
+    
     return render_template('diagnostics.html', 
                          debug_info=debug_info, 
                          db_path=db_path,
@@ -135,9 +148,12 @@ def diagnostics():
                          db_size_mb=db_size_mb,
                          embeddings_count=embeddings_count,
                          unique_doc_count=unique_doc_count,
-                         chromadb_version=chromadb_version)
+                         chromadb_version=chromadb_version,
+                         is_authenticated=is_auth,
+                         user_info=user_info)
 
 @bp.route('/debug-info', methods=['GET'])
+@auth_required
 def get_debug_info():
     """Return debug information as JSON for AJAX updates"""
     vector_store = VectorStore.get_instance()
@@ -229,6 +245,33 @@ def get_debug_info():
         debug_info['test_id_count'] = 0
     
     return jsonify(debug_info)
+
+@bp.route('/login', methods=['GET'])
+def login():
+    """Handle login through Replit Auth"""
+    # Check if user is already authenticated
+    if is_authenticated():
+        return redirect(url_for('web.index'))
+        
+    # Get login URL
+    login_url = get_login_url()
+    
+    # If login_url is the same as current URL, we're in a redirect loop
+    if login_url == request.path or login_url == "/login":
+        # Provide a fallback login page
+        return render_template('login.html', 
+                              error="Authentication system is temporarily unavailable. Please try again later.",
+                              is_authenticated=False,
+                              user_info=None)
+    
+    return redirect(login_url)
+
+@bp.route('/logout', methods=['GET'])
+def logout():
+    """Handle logout"""
+    handle_logout()
+    flash("You have been logged out successfully", "success")
+    return redirect(url_for('web.index'))
 
 def error_handler(error):
     """Custom error handler for web routes"""

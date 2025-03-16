@@ -47,6 +47,7 @@ htmlcov/
 .tox/
 
 # Replit specific
+attached_assets/
 .replit
 .breakpoints
 replit.nix 

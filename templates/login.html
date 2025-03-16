@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card bg-dark">
+                <div class="card-header">
+                    <h4 class="mb-0">Authentication Required</h4>
+                </div>
+                <div class="card-body">
+                    {% if error %}
+                    <div class="alert alert-warning" role="alert">
+                        {{ error }}
+                    </div>
+                    {% endif %}
+                    
+                    <p>You need to log in to access this application. Please use Replit authentication to continue.</p>
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <a href="/" class="btn btn-primary">Try Again</a>
+                        <a href="{{ url_for('web.index') }}" class="btn btn-outline-secondary">Return to Home</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
