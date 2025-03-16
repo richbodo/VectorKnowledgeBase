@@ -10,9 +10,15 @@ from services.vector_store import VectorStore
 from models import Document
 from config import MAX_FILE_SIZE, ALLOWED_FILE_TYPES
 from api.auth import require_api_key
+from utils.privacy_log_handler import PrivacyLogFilter
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('api', __name__, url_prefix='/api')  # Add explicit URL prefix
+
+# Add privacy filter to logger
+privacy_filter = PrivacyLogFilter()
+logger.addFilter(privacy_filter)
 
 def json_response(payload, status=200):
     """Helper function to create consistent JSON responses.
@@ -143,7 +149,7 @@ def query_documents():
             data = request.get_json()
         else:
             data = request.form.to_dict() or request.args.to_dict()
-            
+        
         # Get query parameter from different possible sources
         query = data.get('query', '').strip() if data else ''
         

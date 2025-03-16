@@ -3,13 +3,13 @@ from flask import Blueprint, render_template, request, flash, jsonify, redirect,
 from services.vector_store import VectorStore
 from config import VKB_API_KEY
 from web.auth import auth_required, is_authenticated, get_user_info, get_login_url, handle_logout
+from web.http_auth import http_auth_required, session_authenticated
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('web', __name__)
 
 @bp.route('/', methods=['GET'])
-# Temporarily disable auth for testing
-# @auth_required
+@http_auth_required
 def index():
     """Render the main page"""
     vector_store = VectorStore.get_instance()
