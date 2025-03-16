@@ -84,7 +84,7 @@ Upload a PDF document for processing and vector storage. The document will be au
 ```bash
 curl -X POST -F "file=@document.pdf" \
      -H "Accept: application/json" \
-     -H "X-API-KEY: your_vkb_api_key" \
+     -H "Authorization: Bearer your_vkb_api_key" \
      https://vector-knowledge-base-RichBodo.replit.app/api/upload
 ```
 
@@ -139,7 +139,7 @@ Search through uploaded documents using semantic similarity. Results are retriev
 curl -X POST https://vector-knowledge-base-RichBodo.replit.app/api/query \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
-  -H "X-API-KEY: your_vkb_api_key" \
+  -H "Authorization: Bearer your_vkb_api_key" \
   -d '{"query": "What are the main points discussed in the document?"}'
 ```
 
@@ -236,11 +236,12 @@ Common error responses include:
 
 ## Authentication
 The API accepts the API key in multiple ways (in order of precedence):
-1. As an HTTP header: `X-API-KEY: your-api-key`
-2. In the JSON request body: `{"X-API-KEY": "your-api-key", ...}` or `{"X__API__KEY": "your-api-key", ...}`
-3. As a query parameter: `?X-API-KEY=your-api-key` or `?X__API__KEY=your-api-key`
-4. As a form field: `X-API-KEY=your-api-key` or `X__API__KEY=your-api-key`
+1. As an Authorization Bearer token: `Authorization: Bearer your-api-key` (recommended for OpenAI Custom GPTs)
+2. As an HTTP header: `X-API-KEY: your-api-key`
+3. In the JSON request body: `{"X-API-KEY": "your-api-key", ...}` or `{"X__API__KEY": "your-api-key", ...}`
+4. As a query parameter: `?X-API-KEY=your-api-key` or `?X__API__KEY=your-api-key`
+5. As a form field: `X-API-KEY=your-api-key` or `X__API__KEY=your-api-key`
 
-Note: The double underscore format (X__API__KEY) is specifically supported for compatibility with OpenAI's API integration.
+Note: The double underscore format (X__API__KEY) is specifically supported for compatibility with some integrations. For OpenAI Custom GPTs, the Authorization Bearer method is recommended and automatically used by the platform.
 
 This flexibility ensures compatibility with various API consumers, including OpenAI Actions.
