@@ -67,6 +67,20 @@ If database loss occurs:
 2. It will restore from the most recent object storage backup on startup
 3. If automatic recovery fails, manual restoration can be performed using the CLI tools
 
+## Disk Space Management
+
+The system includes features to handle disk quota limitations:
+
+1. **Skip Local Backup Option**: When restoring, local backups can be skipped to conserve disk space
+2. **Automatic Recovery**: If disk quota errors occur during restore, the system attempts recovery by skipping local backups
+3. **CLI Support**: The command-line tool supports a `--skip-backup` flag for constrained environments
+4. **Error Resilience**: Graceful error handling with detailed logging helps diagnose space issues
+
+Example CLI usage in disk-constrained environments:
+```bash
+python utils/object_storage.py restore --skip-backup
+```
+
 ## Monitoring
 
 Backup operations are logged with detailed information:
@@ -74,3 +88,4 @@ Backup operations are logged with detailed information:
 - Timestamp
 - Files affected
 - Rotation statistics
+- Disk space diagnostics

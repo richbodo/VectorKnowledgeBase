@@ -77,13 +77,20 @@ For detailed API documentation including authentication methods, endpoints, and 
    - Ensure persistent storage is enabled
    - For production, enable Replit's Object Storage
    - The backup system automatically manages data persistence (see BackupSystem.md)
+   - In disk-constrained environments, use the `--skip-backup` flag with restore operations
 
-5. **Run the Application**
+5. **Disk Space Management**
+   - The system is designed to handle disk quota limitations
+   - For cleanup: `python utils/delete_backup_history.py --force`
+   - For restore without local backup: `python utils/object_storage.py restore --skip-backup`
+   - All restorations during application startup automatically adapt to disk constraints
+
+6. **Run the Application**
    - Use the "Run" button in Replit
    - Application will start on the default Replit port
    - First run will initialize the ChromaDB database
 
-6. **Verify Functionality**
+7. **Verify Functionality**
    - Navigate to the web interface
    - Upload a test PDF
    - Test search functionality
