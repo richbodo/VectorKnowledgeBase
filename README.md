@@ -42,8 +42,14 @@ I implmented on Replit, using a bunch of other tools.  It should be possible to 
 2. Install dependencies: `pip install -r requirements.txt`
 3. Set environment variables:
    ```
+   # Required for functionality
    export OPENAI_API_KEY="your_openai_api_key"
    export VKB_API_KEY="your_custom_api_key"
+   
+   # Required for authentication and session management
+   export SESSION_SECRET="your_random_secret_key"
+   export BASIC_AUTH_USERNAME="your_secure_username"
+   export BASIC_AUTH_PASSWORD="your_secure_password"
    ```
 4. Run the application: `python main.py`
 5. Access the web interface at `http://localhost:5000`
@@ -68,9 +74,14 @@ For detailed API documentation including authentication methods, endpoints, and 
 1. **Fork the Repository**
    - Create a new Replit project importing from GitHub repository
 
-2. **Set Required Environment Variables**
+2. **Set Required Environment Variables in Replit Secrets**
    - `OPENAI_API_KEY`: Your OpenAI API key for embeddings and queries
    - `VKB_API_KEY`: Custom API key for API endpoint authentication
+   - `SESSION_SECRET`: Random string for secure session management
+   - `BASIC_AUTH_USERNAME`: Secure username for HTTP Basic Authentication
+   - `BASIC_AUTH_PASSWORD`: Strong password for HTTP Basic Authentication
+   
+   > **IMPORTANT**: For production deployments, always use Replit Secrets rather than environment variables in .env files or code. See [Authentication.md](docs/Authentication.md) for detailed setup instructions.
 
 3. **Install Dependencies**
    - Replit will automatically install dependencies from pyproject.toml
@@ -117,11 +128,20 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
 
 3. **Configure Environment Variables**
    ```bash
+   # Required API keys
    export OPENAI_API_KEY="your_openai_api_key"
    export VKB_API_KEY="your_custom_api_key"
+   
+   # Authentication and security
+   export SESSION_SECRET="your_random_secret_key"
+   export BASIC_AUTH_USERNAME="your_secure_username"
+   export BASIC_AUTH_PASSWORD="your_secure_password"
+   
    # Optional: Configure ChromaDB location
    export CHROMADB_DIR="/path/to/persistent/storage"
    ```
+   
+   > **Security Note**: In production, use a secrets management solution instead of setting environment variables directly in shell scripts.
 
 4. **Run for Development**
    ```bash

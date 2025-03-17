@@ -17,6 +17,17 @@
                     
                     <p class="mb-4">Please log in to access the PDF Vector Knowledge Base application.</p>
                     
+                    <div class="alert alert-info mb-4" role="alert">
+                        <h5 class="alert-heading"><i class="fas fa-info-circle"></i> Security Note</h5>
+                        <p>For deployment environments, credentials should be set using Replit Secrets:</p>
+                        <ul>
+                            <li><code>BASIC_AUTH_USERNAME</code>: Your secure username</li>
+                            <li><code>BASIC_AUTH_PASSWORD</code>: Your secure password</li>
+                            <li><code>SESSION_SECRET</code>: A random string for session security</li>
+                        </ul>
+                        <p class="mb-0">Default credentials are only used in development mode.</p>
+                    </div>
+                    
                     <form method="POST" action="{{ url_for('web.login') }}">
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
@@ -26,8 +37,8 @@
                             <label for="password" class="form-label">Password</label>
                             <input type="password" class="form-control" id="password" name="password" required>
                             <small class="form-text text-muted mt-2">
-                                Development credentials: admin / changeme123<br>
-                                Production credentials: snhuser / snhpass
+                                For production use, set <code>BASIC_AUTH_USERNAME</code> and <code>BASIC_AUTH_PASSWORD</code> in Replit Secrets.
+                                <br>Default credentials for development: admin / changeme123
                             </small>
                         </div>
                         <div class="d-grid gap-2 mt-4">

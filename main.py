@@ -79,12 +79,16 @@ def create_app():
     logger.info(f"Environment variables available - SESSION_SECRET: {has_session_secret}, "
                 f"BASIC_AUTH_USERNAME: {has_auth_username}, BASIC_AUTH_PASSWORD: {has_auth_password}")
     
-    # Use a default secret key in deployment if not provided
+    # Handle SESSION_SECRET for both deployment and development environments
     app.secret_key = os.environ.get("SESSION_SECRET")
     if not app.secret_key:
         if is_deployment:
-            logger.warning("SESSION_SECRET not set in deployment, using default")
-            app.secret_key = "default-deployment-secret-key"
+            logger.warning("SESSION_SECRET not set in deployment - ensure this is set in Replit Secrets")
+            # Generate a random secret key in deployment if not provided as a fallback
+            # This is still not ideal as it will change on each restart
+            import secrets
+            app.secret_key = secrets.token_hex(16)
+            logger.info("Generated temporary random secret key for this session")
         else:
             logger.error("SESSION_SECRET environment variable not set")
             raise ValueError("SESSION_SECRET environment variable is required")
