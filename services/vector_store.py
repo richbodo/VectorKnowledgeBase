@@ -335,13 +335,9 @@ class VectorStore:
                 logger.warning("No documents in vector store")
                 return [], "No documents available for search"
 
-<<<<<<< HEAD
-            # Privacy-enhanced logging: Don't log the actual query content
+# Privacy-enhanced logging: Don't log the actual query content
             query_length = len(query) if query else 0
             logger.info(f"Performing semantic search (query length: {query_length}, top {k} results, threshold {similarity_threshold})")
-=======
-            logger.info(f"Searching for: {query} (top {k} results, threshold {similarity_threshold})")
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
             
             # Log the count of documents for diagnostic purposes
             logger.info(f"Current document count: {len(self.documents)}")
@@ -466,8 +462,7 @@ class VectorStore:
             return search_results, None
 
         except Exception as e:
-<<<<<<< HEAD
-            # Privacy-enhanced error handling for search errors
+# Privacy-enhanced error handling for search errors
             error_details = str(e)
             
             # Check if the query string appears in the error message and redact it
@@ -495,12 +490,6 @@ class VectorStore:
                 logger.error("Error occurred during search operation (details redacted for privacy)")
             
             return [], "An error occurred during search. Please try a different query."
-=======
-            error_msg = f"Error searching vector store: {str(e)}"
-            logger.error(error_msg)
-            logger.error("Full search error details:", exc_info=True)
-            return [], error_msg
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
     def _schedule_backup(self):
         """Schedule a backup if enough time has passed since last backup"""
