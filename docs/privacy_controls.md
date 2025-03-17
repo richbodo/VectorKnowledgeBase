@@ -4,6 +4,13 @@
 
 This document outlines the privacy controls implemented in the Vector Knowledge Base application to protect sensitive information in logs and error handling. These controls focus primarily on query content, which may contain sensitive information from users.
 
+## Related Documentation
+
+- [PII Protection Overview](pii_protection.md) - General principles of PII protection
+- [PII Implementation Guide](pii_implementation_guide.md) - Technical details for developers
+- [User PII Guide](user_pii_guide.md) - Simplified guide for end users
+- [Authentication Guide](authentication.md) - How authentication credentials are protected
+
 ## Key Privacy Features
 
 ### 1. Privacy Log Filter

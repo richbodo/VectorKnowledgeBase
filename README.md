@@ -74,7 +74,7 @@ I implmented on Replit, using a bunch of other tools.  It should be possible to 
 
 ## API Usage
 
-For detailed API documentation including authentication methods, endpoints, and example usage, see [api_specification.md](api_specification.md).
+For detailed API documentation including authentication methods, endpoints, and example usage, see [API Specification](docs/api_specification.md).
 
 ## Architecture
 
@@ -183,7 +183,7 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
 
 ## Development
 
-For more information on development and future research areas, please refer to [Roadmap.md](Roadmap.md).
+For more information on development and future research areas, please refer to [Project Roadmap](docs/Roadmap.md).
 
 ## License
 

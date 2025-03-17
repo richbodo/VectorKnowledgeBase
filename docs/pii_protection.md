@@ -4,6 +4,13 @@
 
 This document outlines how the Vector Knowledge Base application protects Personally Identifiable Information (PII) through comprehensive filtering and privacy controls. These mechanisms ensure that sensitive user data remains protected throughout the entire query processing pipeline.
 
+## Related Documentation
+
+- [Privacy Controls](privacy_controls.md) - Detailed implementation of privacy features
+- [PII Implementation Guide](pii_implementation_guide.md) - Technical guide for developers
+- [User PII Guide](user_pii_guide.md) - End-user focused PII information
+- [Authentication Guide](authentication.md) - How authentication credentials are protected
+
 ## What is PII?
 
 Personally Identifiable Information (PII) is any data that could potentially identify a specific individual. This includes:

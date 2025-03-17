@@ -1,16 +1,20 @@
 # Vector Knowledge Base Authentication Guide
 
-This document describes the authentication mechanism used in the Vector Knowledge Base application and provides instructions for system administrators and developers.
+This document provides comprehensive guidance on authentication for the Vector Knowledge Base application, including setup, security best practices, and troubleshooting.
 
-## Authentication Overview
+## Authentication Methods
 
-The Vector Knowledge Base uses HTTP Basic Authentication, a simple and widely supported authentication method that works across all modern browsers and API clients. This provides a reliable and consistent authentication experience across both development and production environments.
+The application supports two authentication methods:
 
-## How It Works
+1. **HTTP Basic Authentication** (Primary Method) - Simple, widely supported method that works across all modern browsers and API clients
+2. **Replit Auth** (Legacy Support) - Maintained for backward compatibility
 
-1. When a user attempts to access a protected endpoint, they will be prompted for credentials if they are not already authenticated
+## How Authentication Works
+
+1. When a user attempts to access a protected endpoint, they will be prompted for credentials if not already authenticated
 2. Credentials are verified against environment variables set in Replit Secrets
 3. Upon successful authentication, a session is created to maintain the user's authenticated state
+4. Future requests use the session for authentication
 
 ## Required Environment Variables
 
@@ -24,12 +28,20 @@ The authentication system requires the following environment variables to be set
 
 ## Setting Up Authentication
 
-### For Development
+### For Development Environment
 
-1. Add the required environment variables to your Replit workspace:
+1. Default credentials are provided for convenience in development:
+   - Username: `admin`
+   - Password: `changeme123`
+   
+   **Important:** These credentials should **never** be used in production.
+
+2. To customize, add the required environment variables to your Replit workspace:
    - In the Replit UI, navigate to the "Secrets" tab in the Tools panel
-   - Add each of the required environment variables with appropriate values
-   - Ensure the values are secure (use a strong password and a random session secret)
+   - Add each of the required environment variables with appropriate values:
+     - Key: `BASIC_AUTH_USERNAME` | Value: Your desired username
+     - Key: `BASIC_AUTH_PASSWORD` | Value: Your secure password
+     - Key: `SESSION_SECRET` | Value: A random string (at least 32 characters recommended)
 
 ### For Production Deployment
 
@@ -49,30 +61,45 @@ To ensure consistency between environments:
 2. Manually add the same secrets to your deployment environment
 3. If a deployment shows "secrets out of sync," it means you need to update the secrets in your deployment environment
 
+For more details on secrets management, see the [Replit Secrets Guide](replit_secrets_guide.md).
+
+## Authentication Endpoints
+
+- **Login**: `/login` - Form-based login page
+- **Logout**: `/logout` - Clears the session and logs out the user
+
+## Security Best Practices
+
+1. **Use Strong Credentials**: Complex username and password combinations
+2. **Change Secrets Regularly**: Rotate your secrets periodically
+3. **HTTPS Only**: Ensure your deployment uses HTTPS to protect credentials
+4. **Session Security**: Use a complex, random string for `SESSION_SECRET`
+5. **No Hardcoding**: Never hardcode credentials in the codebase
+6. **Secure Sharing**: Avoid sharing credentials in unsecured channels
+7. **Audit Logs**: Review authentication logs for suspicious activity
+
 ## Troubleshooting Authentication Issues
 
-If you encounter authentication issues:
+### Common Issues in Production
 
-1. **Common Issues**:
-   - Credentials not being accepted: Verify that the environment variables are set correctly in both development and deployment environments
-   - Session not persisting: Check that the SESSION_SECRET is set and consistent
+1. **Authentication Failures**:
+   - Verify Replit Secrets are properly set in both development and deployment environments
+   - Check logs for environment variable availability
+   - Ensure the application has been restarted after setting new secrets
 
-2. **Debugging**:
-   - Application logs include detailed authentication diagnostics (with sensitive information filtered out)
-   - Check for "Authentication failed" messages in the logs
+2. **Session Issues**:
+   - Clear browser cookies if experiencing session problems
+   - Verify `SESSION_SECRET` is set and consistent
 
-3. **Error Messages**:
+3. **Common Error Messages**:
    - `BASIC_AUTH_USERNAME is MISSING in production environment`: The username environment variable is not set
    - `BASIC_AUTH_PASSWORD is MISSING in production environment`: The password environment variable is not set
    - `SESSION_SECRET environment variable not set`: The session secret is missing
 
-## Security Best Practices
+### Debugging
 
-1. Use strong, unique passwords for the `BASIC_AUTH_PASSWORD`
-2. Use a complex, random string for `SESSION_SECRET`
-3. Change credentials periodically
-4. Never hardcode credentials in the codebase
-5. Avoid sharing credentials in unsecured channels
+- Application logs include detailed authentication diagnostics (with sensitive information filtered out)
+- Check for "Authentication failed" messages in the logs
 
 ## Implementation Details
 
@@ -83,3 +110,9 @@ The authentication system is implemented in the `web/http_auth.py` module, which
 - Detailed logging for troubleshooting
 
 This implementation is designed to be simple, reliable, and compatible with the Replit environment.
+
+## Related Documentation
+
+- [API Specification](api_specification.md) - Learn how authentication is used in the API
+- [Replit Secrets Guide](replit_secrets_guide.md) - Detailed guide on managing secrets
+- [Privacy Controls](privacy_controls.md) - How sensitive authentication data is protected
