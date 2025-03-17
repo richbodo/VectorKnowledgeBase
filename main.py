@@ -70,6 +70,14 @@ def create_app():
     
     # Detect deployment mode
     is_deployment = bool(os.environ.get("REPL_DEPLOYMENT", False))
+    logger.info(f"Deployment mode detected: {is_deployment}")
+    
+    # Log availability of environment variables (without revealing values)
+    has_session_secret = bool(os.environ.get("SESSION_SECRET"))
+    has_auth_username = bool(os.environ.get("BASIC_AUTH_USERNAME"))
+    has_auth_password = bool(os.environ.get("BASIC_AUTH_PASSWORD"))
+    logger.info(f"Environment variables available - SESSION_SECRET: {has_session_secret}, "
+                f"BASIC_AUTH_USERNAME: {has_auth_username}, BASIC_AUTH_PASSWORD: {has_auth_password}")
     
     # Use a default secret key in deployment if not provided
     app.secret_key = os.environ.get("SESSION_SECRET")
@@ -80,6 +88,15 @@ def create_app():
         else:
             logger.error("SESSION_SECRET environment variable not set")
             raise ValueError("SESSION_SECRET environment variable is required")
+    else:
+        logger.info("SESSION_SECRET successfully loaded from environment variables")
+        
+    # Configure session to be more resilient in production
+    app.config['SESSION_COOKIE_SECURE'] = is_deployment
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours in seconds
+    logger.info(f"Session cookie config - Secure: {app.config['SESSION_COOKIE_SECURE']}, "
+                f"HttpOnly: {app.config['SESSION_COOKIE_HTTPONLY']}")
 
     # Disable Flask's default redirect behavior
     app.url_map.strict_slashes = False
