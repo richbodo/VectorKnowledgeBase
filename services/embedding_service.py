@@ -36,6 +36,7 @@ class EmbeddingService:
                 logger.error("Empty text provided for embedding generation")
                 return None
 
+<<<<<<< HEAD
             # Privacy-enhanced logging - don't log text content
             text_length = len(text) if text else 0
             logger.info(f"Generating embedding for text of length: {text_length} chars")
@@ -62,6 +63,18 @@ class EmbeddingService:
                     raise Exception(f"API error (sanitized): {sanitized_error}")
                 raise
                 
+=======
+            logger.info(f"Generating embedding for text of length: {len(text)} chars")
+            logger.debug(f"Text preview (first 100 chars): {text[:100]}...")
+            logger.debug(f"OpenAI API Key configured: {bool(openai.api_key)}")
+            logger.debug(f"Using model: {EMBEDDING_MODEL}")
+
+            logger.info("Making API call to OpenAI embeddings endpoint...")
+            response = openai.embeddings.create(
+                input=[text],  # Input must be a list of strings
+                model=EMBEDDING_MODEL
+            )
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
             logger.info("Successfully received response from OpenAI API")
 
             embedding = response.data[0].embedding

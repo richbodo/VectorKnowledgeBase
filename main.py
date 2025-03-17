@@ -59,7 +59,6 @@ add_privacy_filter_to_logger(logging.getLogger('openai._base_client'))
 add_privacy_filter_to_logger(logging.getLogger('httpx'))
 add_privacy_filter_to_logger(logging.getLogger('httpcore'))
 logger.info("Privacy filter applied to OpenAI client loggers")
-
 # In production, set SQLAlchemy and other verbose loggers to WARNING level
 if is_production:
     logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
@@ -78,7 +77,7 @@ def create_app():
     
     # Detect deployment mode
     is_deployment = bool(os.environ.get("REPL_DEPLOYMENT", False))
-    logger.info(f"Deployment mode detected: {is_deployment}")
+logger.info(f"Deployment mode detected: {is_deployment}")
     
     # Enhanced logging for environment variables in production
     
@@ -143,7 +142,11 @@ def create_app():
     # Disable Flask's default redirect behavior
     app.url_map.strict_slashes = False
 
+<<<<<<< HEAD
     # Add request logging middleware with enhanced privacy filtering
+=======
+    # Add request logging middleware
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
     @app.before_request
     def log_request_info():
         logger.info("=== New Request ===")
@@ -158,6 +161,7 @@ def create_app():
                 safe_headers[header] = '[REDACTED]'
         
         logger.info(f"Headers: {safe_headers}")
+<<<<<<< HEAD
         
         # Filter and log request parameters based on endpoint type
         if request.path.startswith('/api/'):
@@ -201,6 +205,8 @@ def create_app():
                 
             if request.files:
                 logger.info(f"Request contains files: {list(request.files.keys())}")
+=======
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
     # Defer vector store initialization until first request
     @app.before_request

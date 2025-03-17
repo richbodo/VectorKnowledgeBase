@@ -34,6 +34,7 @@ class PrivacyLogFilter(logging.Filter):
             # OAuth/Bearer tokens
             'bearer_token': re.compile(r'bearer\s+([a-zA-Z0-9_\-\.]{20,})', re.I),
             
+<<<<<<< HEAD
             # Query content (sanitize actual queries) - extended to catch more patterns
             'query_content': re.compile(r'(query"?\s*[:=]\s*"?)([^"]+)("?)', re.IGNORECASE),
             
@@ -60,6 +61,13 @@ class PrivacyLogFilter(logging.Filter):
             
             # OpenAI API request json_data format
             'openai_json_data': re.compile(r'(json_data[\'"]?:.*?[\'"]input[\'"]:\s*\[[\'"])([^\'"]+)([\'"])', re.IGNORECASE | re.DOTALL),
+=======
+            # Query content (sanitize actual queries)
+            'query_content': re.compile(r'(query"?\s*[:=]\s*"?)([^"]+)("?)'),
+            
+            # JSON query content (for API payloads)
+            'json_query': re.compile(r'("query":\s*")([^"]+)(")'),
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
             
             # PDF file content indicators
             'pdf_content': re.compile(r'(%PDF-\d+\.\d+.{10,100})'),
@@ -120,6 +128,7 @@ class PrivacyLogFilter(logging.Filter):
                 # Redact JSON query content
                 message = self.patterns['json_query'].sub(r'\1[QUERY CONTENT REDACTED]\3', message)
                 
+<<<<<<< HEAD
                 # Redact form parameter query content
                 message = self.patterns['form_query'].sub(r'\1[QUERY CONTENT REDACTED]\3', message)
                 
@@ -144,6 +153,11 @@ class PrivacyLogFilter(logging.Filter):
                 # Redact OpenAI API json_data format
                 message = self.patterns['openai_json_data'].sub(r'\1[QUERY CONTENT REDACTED]\3', message)
                 
+=======
+                # Redact PDF content
+                message = self.patterns['pdf_content'].sub('[PDF CONTENT REDACTED]', message)
+                
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
                 # Redact sk- style API keys (like OpenAI)
                 message = self.patterns['sk_api_keys'].sub(r'[API KEY REDACTED]', message)
                 
@@ -185,6 +199,7 @@ class PrivacyLogFilter(logging.Filter):
                                     sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
                                 elif pattern_name == 'json_query':
                                     sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
+<<<<<<< HEAD
                                 elif pattern_name == 'form_query':
                                     sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
                                 elif pattern_name == 'url_query':
@@ -201,6 +216,10 @@ class PrivacyLogFilter(logging.Filter):
                                     sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
                                 elif pattern_name == 'openai_json_data':
                                     sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
+=======
+                                elif pattern_name == 'pdf_content':
+                                    sanitized_value = pattern.sub('[PDF CONTENT REDACTED]', sanitized_value)
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
                                 elif pattern_name == 'sk_api_keys':
                                     sanitized_value = pattern.sub(r'[API KEY REDACTED]', sanitized_value)
                                 elif pattern_name == 'openai_p_keys':
@@ -234,6 +253,7 @@ class PrivacyLogFilter(logging.Filter):
                                     sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
                                 elif pattern_name == 'json_query':
                                     sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
+<<<<<<< HEAD
                                 elif pattern_name == 'form_query':
                                     sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
                                 elif pattern_name == 'url_query':
@@ -250,6 +270,10 @@ class PrivacyLogFilter(logging.Filter):
                                     sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
                                 elif pattern_name == 'openai_json_data':
                                     sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
+=======
+                                elif pattern_name == 'pdf_content':
+                                    sanitized_arg = pattern.sub('[PDF CONTENT REDACTED]', sanitized_arg)
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
                                 elif pattern_name == 'sk_api_keys':
                                     sanitized_arg = pattern.sub(r'[API KEY REDACTED]', sanitized_arg)
                                 elif pattern_name == 'openai_p_keys':

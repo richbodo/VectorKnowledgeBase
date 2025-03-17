@@ -10,16 +10,22 @@ from services.vector_store import VectorStore
 from models import Document
 from config import MAX_FILE_SIZE, ALLOWED_FILE_TYPES
 from api.auth import require_api_key
+<<<<<<< HEAD
 from utils.privacy_log_handler import PrivacyLogFilter
 from contextlib import contextmanager
+=======
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('api', __name__, url_prefix='/api')  # Add explicit URL prefix
 
+<<<<<<< HEAD
 # Add privacy filter to logger
 privacy_filter = PrivacyLogFilter()
 logger.addFilter(privacy_filter)
 
+=======
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 def json_response(payload, status=200):
     """Helper function to create consistent JSON responses.
     Uses a simplified approach to ensure reliable response handling."""
@@ -144,6 +150,7 @@ def upload_document():
 def query_documents():
     """Query endpoint for semantic search"""
     try:
+<<<<<<< HEAD
         # Log request with privacy protection
         logger.info("API query endpoint called - processing with privacy filtering")
         
@@ -174,6 +181,23 @@ def query_documents():
         vector_store = VectorStore.get_instance()
         results, error_msg = vector_store.search(
             query=safe_query,
+=======
+        # Check if request is JSON or form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict() or request.args.to_dict()
+            
+        # Get query parameter from different possible sources
+        query = data.get('query', '').strip() if data else ''
+        
+        if not query:
+            return json_response({"error": "Query cannot be empty"}, 400)
+
+        vector_store = VectorStore.get_instance()
+        results, error_msg = vector_store.search(
+            query=query,
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
             k=3,
             similarity_threshold=0.1
         )

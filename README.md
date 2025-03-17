@@ -2,7 +2,11 @@
 
 Vector DB and API for use with OpenAI custom GPTs to hook into with GPT Actions written in python using flask.  This is a simple intro to RAG LLM coding for me that allowed me to enable my custom GPT to access a library of hundreds of research papers that I have access to but the GPT couldn't find as easily.  
 
+<<<<<<< HEAD
 I implmented on Replit, using a bunch of other tools.  It should be possible to re-use this there.  My notes on this setup are [here](http://richbodo.pbworks.com/w/page/160057005/LLM%20RAG%20Intro), and my upload and API test tool is [here](https://github.com/richbodo/snh_bridge_test).
+=======
+I implemented on Replit.  It should be possible to re-use this there.  My notes on this setup are [here](http://richbodo.pbworks.com/w/page/160057005/LLM%20RAG%20Intro), and my upload and API test tool is [here](https://github.com/richbodo/snh_bridge_test).
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 ## Table of Contents
 
@@ -18,6 +22,7 @@ I implmented on Replit, using a bunch of other tools.  It should be possible to 
 - [Development](#development)
 - [License](#license)
 
+<<<<<<< HEAD
 ## Documentation Index
 
 ### Core Documentation
@@ -36,6 +41,8 @@ I implmented on Replit, using a bunch of other tools.  It should be possible to 
 ### Documentation Index
 - [Documentation Overview](docs/README.md) - Master documentation index
 
+=======
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 ## Features
 
 - **PDF Processing**: Extract text from PDF documents with memory-efficient processing
@@ -45,6 +52,11 @@ I implmented on Replit, using a bunch of other tools.  It should be possible to 
 - **Web Interface**: User-friendly interface for uploading and querying documents
 - **Persistence**: Robust backup and restore functionality with automatic rotation
 - **Monitoring**: Built-in diagnostic tools for system health and database stats
+<<<<<<< HEAD
+=======
+- **PII Filtering**: Logs, headers, stuff like that
+- **Backup and restore SQLite**: Needed for persistence on Replit
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 ## Quick Start
 
@@ -60,6 +72,7 @@ I implmented on Replit, using a bunch of other tools.  It should be possible to 
 2. Install dependencies: `pip install -r requirements.txt`
 3. Set environment variables:
    ```
+<<<<<<< HEAD
    # Required for functionality
    export OPENAI_API_KEY="your_openai_api_key"
    export VKB_API_KEY="your_custom_api_key"
@@ -68,13 +81,21 @@ I implmented on Replit, using a bunch of other tools.  It should be possible to 
    export SESSION_SECRET="your_random_secret_key"
    export BASIC_AUTH_USERNAME="your_secure_username"
    export BASIC_AUTH_PASSWORD="your_secure_password"
+=======
+   export OPENAI_API_KEY="your_openai_api_key"
+   export VKB_API_KEY="your_custom_api_key"
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
    ```
 4. Run the application: `python main.py`
 5. Access the web interface at `http://localhost:5000`
 
 ## API Usage
 
+<<<<<<< HEAD
 For detailed API documentation including authentication methods, endpoints, and example usage, see [API Specification](docs/api_specification.md).
+=======
+For detailed API documentation including authentication methods, endpoints, and example usage, see [api_specification.md](api_specification.md).
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 ## Architecture
 
@@ -83,7 +104,11 @@ For detailed API documentation including authentication methods, endpoints, and 
 - **OpenAI**: Text embeddings and query processing
 - **ChromaDB**: Vector database for semantic search
 - **Object Storage**: Persistent storage for ChromaDB data with automatic backup rotation
+<<<<<<< HEAD
 - **Backup System**: For details, see [Backup System Guide](docs/BackupSystem.md)
+=======
+- **Backup System**: For details, see [BackupSystem.md](BackupSystem.md)
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 ## Deployment
 
@@ -92,6 +117,7 @@ For detailed API documentation including authentication methods, endpoints, and 
 1. **Fork the Repository**
    - Create a new Replit project importing from GitHub repository
 
+<<<<<<< HEAD
 2. **Set Required Environment Variables in Replit Secrets**
    - `OPENAI_API_KEY`: Your OpenAI API key for embeddings and queries
    - `VKB_API_KEY`: Custom API key for API endpoint authentication
@@ -100,6 +126,11 @@ For detailed API documentation including authentication methods, endpoints, and 
    - `BASIC_AUTH_PASSWORD`: Strong password for HTTP Basic Authentication
    
    > **IMPORTANT**: For production deployments, always use Replit Secrets rather than environment variables in .env files or code. See [Authentication Guide](docs/authentication.md) for detailed setup instructions.
+=======
+2. **Set Required Environment Variables**
+   - `OPENAI_API_KEY`: Your OpenAI API key for embeddings and queries
+   - `VKB_API_KEY`: Custom API key for API endpoint authentication
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 3. **Install Dependencies**
    - Replit will automatically install dependencies from pyproject.toml
@@ -107,7 +138,11 @@ For detailed API documentation including authentication methods, endpoints, and 
 4. **Configure Storage**
    - Ensure persistent storage is enabled
    - For production, enable Replit's Object Storage
+<<<<<<< HEAD
    - The backup system automatically manages data persistence (see [Backup System Guide](docs/BackupSystem.md))
+=======
+   - The backup system automatically manages data persistence (see BackupSystem.md)
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
    - In disk-constrained environments, use the `--skip-backup` flag with restore operations
 
 5. **Disk Space Management**
@@ -146,6 +181,7 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
 
 3. **Configure Environment Variables**
    ```bash
+<<<<<<< HEAD
    # Required API keys
    export OPENAI_API_KEY="your_openai_api_key"
    export VKB_API_KEY="your_custom_api_key"
@@ -160,6 +196,13 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
    ```
    
    > **Security Note**: In production, use a secrets management solution instead of setting environment variables directly in shell scripts.
+=======
+   export OPENAI_API_KEY="your_openai_api_key"
+   export VKB_API_KEY="your_custom_api_key"
+   # Optional: Configure ChromaDB location
+   export CHROMADB_DIR="/path/to/persistent/storage"
+   ```
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 4. **Run for Development**
    ```bash
@@ -183,7 +226,11 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
 
 ## Development
 
+<<<<<<< HEAD
 For more information on development and future research areas, please refer to [Project Roadmap](docs/Roadmap.md).
+=======
+For more information on development and future research areas, please refer to [Roadmap.md](Roadmap.md).
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 ## License
 

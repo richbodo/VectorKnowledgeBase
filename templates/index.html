@@ -215,10 +215,23 @@
 
         <!-- System Information Section -->
         <div class="card mb-4">
+<<<<<<< HEAD
             <div class="card-header">
                 <h2 class="h5 mb-0">System Information</h2>
             </div>
             <div class="card-body">
+=======
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="h5 mb-0">System Information</h2>
+                <div>
+                    <a href="{{ url_for('web.diagnostics') }}" class="btn btn-sm btn-primary me-2">
+                        System Diagnostics
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <h3 class="h6">Vector Store State:</h3>
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
                 <div class="bg-primary p-3 rounded text-white">
                     <p class="mb-0">
                         <strong>Document Count:</strong> {{ debug_info.document_count }}

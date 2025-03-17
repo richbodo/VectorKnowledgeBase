@@ -335,14 +335,19 @@ class VectorStore:
                 logger.warning("No documents in vector store")
                 return [], "No documents available for search"
 
+<<<<<<< HEAD
             # Privacy-enhanced logging: Don't log the actual query content
             query_length = len(query) if query else 0
             logger.info(f"Performing semantic search (query length: {query_length}, top {k} results, threshold {similarity_threshold})")
+=======
+            logger.info(f"Searching for: {query} (top {k} results, threshold {similarity_threshold})")
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
             
             # Log the count of documents for diagnostic purposes
             logger.info(f"Current document count: {len(self.documents)}")
             logger.info(f"Sample document IDs: {list(self.documents.keys())[:3]}")
 
+<<<<<<< HEAD
             # Query ChromaDB with privacy protections
             try:
                 # Create a context manager to safely execute the query with privacy filtering
@@ -369,6 +374,15 @@ class VectorStore:
                         n_results=k * 3,  # Request more results to account for filtering
                         include=["documents", "metadatas", "distances"]
                     )
+=======
+            # Query ChromaDB
+            try:
+                results = self.collection.query(
+                    query_texts=[query],
+                    n_results=k * 3,  # Request more results to account for filtering
+                    include=["documents", "metadatas", "distances"]
+                )
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
                 
                 logger.info(f"ChromaDB search returned {len(results['ids'][0])} results")
             except Exception as query_error:
@@ -452,6 +466,7 @@ class VectorStore:
             return search_results, None
 
         except Exception as e:
+<<<<<<< HEAD
             # Privacy-enhanced error handling for search errors
             error_details = str(e)
             
@@ -480,6 +495,12 @@ class VectorStore:
                 logger.error("Error occurred during search operation (details redacted for privacy)")
             
             return [], "An error occurred during search. Please try a different query."
+=======
+            error_msg = f"Error searching vector store: {str(e)}"
+            logger.error(error_msg)
+            logger.error("Full search error details:", exc_info=True)
+            return [], error_msg
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
     def _schedule_backup(self):
         """Schedule a backup if enough time has passed since last backup"""

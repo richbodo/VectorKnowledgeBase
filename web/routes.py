@@ -1,15 +1,24 @@
 import logging
+<<<<<<< HEAD
 from flask import Blueprint, render_template, request, flash, jsonify, redirect, url_for, session
 from services.vector_store import VectorStore
 from config import VKB_API_KEY
 from web.auth import auth_required, is_authenticated, get_user_info, get_login_url, handle_logout
 from web.http_auth import http_auth_required, session_authenticated
+=======
+from flask import Blueprint, render_template, request, flash, jsonify
+from services.vector_store import VectorStore
+from config import VKB_API_KEY
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('web', __name__)
 
 @bp.route('/', methods=['GET'])
+<<<<<<< HEAD
 @http_auth_required
+=======
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 def index():
     """Render the main page"""
     vector_store = VectorStore.get_instance()
@@ -33,21 +42,30 @@ def index():
     debug_info = vector_store.get_debug_info()
     debug_info['document_count'] = doc_count  # Ensure document_count is available
     
+<<<<<<< HEAD
     # Get authentication info for the template
     is_auth = is_authenticated()
     user_info = get_user_info() if is_auth else None
 
+=======
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
     return render_template('index.html', 
                          document_count=doc_count,  # Keep for backward compatibility
                          debug_info=debug_info,
                          query=query, 
                          results=results,
+<<<<<<< HEAD
                          api_key=VKB_API_KEY,  # Pass API key to template
                          is_authenticated=is_auth,
                          user_info=user_info)
 
 @bp.route('/diagnostics', methods=['GET'])
 @http_auth_required
+=======
+                         api_key=VKB_API_KEY)  # Pass API key to template
+
+@bp.route('/diagnostics', methods=['GET'])
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 def diagnostics():
     """Render the unified diagnostics page"""
     vector_store = VectorStore.get_instance()
@@ -137,10 +155,13 @@ def diagnostics():
     # Get ChromaDB version info
     chromadb_version = debug_info.get('chromadb_version', 'Unknown')
     
+<<<<<<< HEAD
     # Get authentication info for the template
     is_auth = is_authenticated()
     user_info = get_user_info() if is_auth else None
     
+=======
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
     return render_template('diagnostics.html', 
                          debug_info=debug_info, 
                          db_path=db_path,
@@ -149,12 +170,18 @@ def diagnostics():
                          db_size_mb=db_size_mb,
                          embeddings_count=embeddings_count,
                          unique_doc_count=unique_doc_count,
+<<<<<<< HEAD
                          chromadb_version=chromadb_version,
                          is_authenticated=is_auth,
                          user_info=user_info)
 
 @bp.route('/debug-info', methods=['GET'])
 @http_auth_required
+=======
+                         chromadb_version=chromadb_version)
+
+@bp.route('/debug-info', methods=['GET'])
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 def get_debug_info():
     """Return debug information as JSON for AJAX updates"""
     vector_store = VectorStore.get_instance()
@@ -247,6 +274,7 @@ def get_debug_info():
     
     return jsonify(debug_info)
 
+<<<<<<< HEAD
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Handle login through HTTP Basic Auth"""
@@ -292,6 +320,8 @@ def logout():
     flash("You have been logged out successfully", "success")
     return redirect(url_for('web.index'))
 
+=======
+>>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 def error_handler(error):
     """Custom error handler for web routes"""
     return render_template('error.html', error=error), error.code
