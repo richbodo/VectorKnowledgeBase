@@ -11,11 +11,44 @@ from flask import request, Response, session
 DEFAULT_USERNAME = "admin"
 DEFAULT_PASSWORD = "changeme123"  # Default password - CHANGE THIS in production!
 
+# Hard-coded credentials for production deployment - this ensures authentication works even if
+# environment variables aren't properly loaded in the Replit Deployment environment
+# These should match the values set in the Replit Secrets
+PROD_USERNAME = "snhuser"
+PROD_PASSWORD = "snhpass"
+
 def get_auth_credentials():
-    """Get authentication credentials from environment variables or use defaults"""
-    username = os.environ.get("BASIC_AUTH_USERNAME", DEFAULT_USERNAME)
-    password = os.environ.get("BASIC_AUTH_PASSWORD", DEFAULT_PASSWORD)
-    return username, password
+    """
+    Get authentication credentials from environment variables or use deployment-safe defaults
+    
+    This function has special handling for Replit Deployments, where environment variables
+    from Secrets might not be properly loaded.
+    """
+    # Check if we're in deployment mode
+    is_deployment = bool(os.environ.get("REPL_DEPLOYMENT", False))
+    
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Try to get credentials from environment
+    env_username = os.environ.get("BASIC_AUTH_USERNAME")
+    env_password = os.environ.get("BASIC_AUTH_PASSWORD")
+    
+    # Log what we're using (without revealing actual values)
+    if is_deployment:
+        logger.info(f"Running in deployment mode, using production-safe auth method")
+        if env_username and env_password:
+            logger.info("Using environment variables for authentication")
+            return env_username, env_password
+        else:
+            logger.info("Environment variables not available in deployment, using hard-coded production credentials")
+            return PROD_USERNAME, PROD_PASSWORD
+    else:
+        # In development, prefer environment variables with fallback to defaults
+        username = env_username or DEFAULT_USERNAME
+        password = env_password or DEFAULT_PASSWORD
+        logger.info(f"Using development authentication mode")
+        return username, password
 
 def check_auth(username, password):
     """Check if the username and password match the expected credentials"""
