@@ -8,9 +8,9 @@ This directory contains comprehensive documentation for the Vector Knowledge Bas
 
 - [API Specification](api_specification.md) - Detailed API endpoint documentation
 - [Authentication Guide](authentication.md) - Authentication setup and configuration
-- [Backup System Guide](BackupSystem.md) - ChromaDB backup and persistence details
+- [Backup System Guide](backup_system.md) - ChromaDB backup and persistence details
 - [Replit Secrets Guide](replit_secrets_guide.md) - Managing secrets in Replit environments
-- [Project Roadmap](Roadmap.md) - Future development plans and research areas
+- [Project Roadmap](roadmap.md) - Future development plans and research areas
 
 ## Security and Privacy Documentation
 
