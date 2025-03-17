@@ -1,4 +1,4 @@
-# PDF Processing API Specification
+# Vector Knowledge Base API Specification
 
 ## Base URL
 The API is accessible when you deploy your instance from: https://github.com/richbodo/VectorKnowledgeBase
