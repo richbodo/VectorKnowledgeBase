@@ -1,12 +1,8 @@
-<<<<<<< HEAD
 #!/usr/bin/env python
-=======
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 """
 Test script for the privacy log filter functionality.
 This demonstrates how the filter protects sensitive information in logs.
 """
-<<<<<<< HEAD
 
 import logging
 import sys
@@ -24,89 +20,26 @@ def test_privacy_filter():
     logger = logging.getLogger("privacy_test")
     logger.setLevel(logging.DEBUG)
     
+    # Clear any existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
     # Add a console handler
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
     
-    # Add the privacy filter
+    # Add the privacy filter using the utility function
     add_privacy_filter_to_logger(logger)
+    
+    # Add the handler after the filter
+    logger.addHandler(console_handler)
     
     print("\n==== Privacy Filter Test ====\n")
     print("The following logs should have sensitive information redacted:")
     
-    # Test with various formats of sensitive information
-    sensitive_data = "This is very sensitive private information"
-    
-    # Format 1: Simple string with sensitive data
-    logger.info(f"User query: {sensitive_data}")
-    
-    # Format 2: JSON format
-    query_json = {"query": sensitive_data, "metadata": {"user": "test_user"}}
-    logger.info(f"Processing request: {json.dumps(query_json)}")
-    
-    # Format 3: URL parameter format
-    logger.info(f"Received request: /api/query?q={sensitive_data}")
-    
-    # Format 4: Dictionary format
-    logger.info(f"Query params: {{'query': '{sensitive_data}', 'limit': 10}}")
-    
-    # Format 5: API Key format
-    api_key = "sk-1234567890abcdefghijklmnopqrstuvwxyz"
-    logger.info(f"Using API key: {api_key}")
-    
-    # Format 6: Email address
-    email = "user@example.com"
-    logger.info(f"User email: {email}")
-    
-    # Format 7: Query in exception
-    try:
-        # Simulate an exception with sensitive data
-        raise ValueError(f"Error processing query: {sensitive_data}")
-    except Exception as e:
-        logger.error(f"Exception occurred: {str(e)}")
-    
-    print("\n==== Test Completed ====")
-    print("Check the output above. All sensitive data should be redacted.")
-    print("Formats tested:")
-    print("1. Simple string with query data")
-    print("2. JSON format")
-    print("3. URL parameter format")
-    print("4. Dictionary format")
-    print("5. API key format")
-    print("6. Email address")
-    print("7. Exception message format")
-    
-if __name__ == "__main__":
-    test_privacy_filter()
-=======
-import logging
-import sys
-from utils.privacy_log_handler import PrivacyLogFilter
-
-# Configure logging with the privacy filter
-logger = logging.getLogger("privacy_test")
-logger.setLevel(logging.DEBUG)
-
-# Clear any existing handlers
-for handler in logger.handlers[:]:
-    logger.removeHandler(handler)
-
-# Create a console handler
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setFormatter(logging.Formatter('%(name)s - %(levelname)s - %(message)s'))
-
-# Create our privacy filter
-privacy_filter = PrivacyLogFilter()
-console_handler.addFilter(privacy_filter)
-logger.addHandler(console_handler)
-
-# Test function to show unfiltered vs filtered output
-def test_privacy_filter():
-    print("\n=== PRIVACY FILTER TEST ===\n")
-    
+    # Test with a comprehensive set of sensitive data patterns
     sensitive_data = [
         # Email addresses
         "Please contact john.doe@example.com for more information",
@@ -152,8 +85,24 @@ def test_privacy_filter():
         "user": "john@example.com",
         "query": "How to implement OAuth securely?"
     })
+    
+    # Format 2: JSON format
+    query_json = {"query": "This is very sensitive private information", "metadata": {"user": "test_user"}}
+    logger.info(f"Processing request: {json.dumps(query_json)}")
+    
+    # Format 3: URL parameter format
+    logger.info(f"Received request: /api/query?q=This is very sensitive private information")
+    
+    # Format 7: Query in exception
+    try:
+        # Simulate an exception with sensitive data
+        raise ValueError(f"Error processing query: This is very sensitive private information")
+    except Exception as e:
+        logger.error(f"Exception occurred: {str(e)}")
+    
+    print("\n==== Test Completed ====")
+    print("Check the output above. All sensitive data should be redacted.")
+    print("The privacy filter is working if sensitive information is redacted above.")
 
 if __name__ == "__main__":
     test_privacy_filter()
-    print("\nTest complete. The privacy filter is working if sensitive information is redacted above.")
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
