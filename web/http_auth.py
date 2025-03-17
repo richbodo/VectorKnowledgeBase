@@ -7,34 +7,14 @@ import os
 from functools import wraps
 from flask import request, Response, session
 
-# Default credentials for development environments only
-# These defaults should NEVER be used in production!
-# For production deployments, use Replit Secrets to set:
-#   - U: A secure username (Short form of BASIC_AUTH_USERNAME)
-#   - P: A strong password (Short form of BASIC_AUTH_PASSWORD)
-#   - SESSION_SECRET: A random string for session security
-# 
-# Note: We use short names like "U" and "P" because they seem to be more reliably 
-# accessible in production deployments than longer variable names.
-DEFAULT_USERNAME = "admin"
-DEFAULT_PASSWORD = "changeme123"
-
 def get_auth_credentials():
     """
-    Get authentication credentials from environment variables or use deployment-safe defaults
+    Get authentication credentials from environment variables
     
-    This function has special handling for Replit Deployments, where environment variables
-    from Secrets might not be properly loaded.
+    This function retrieves the authentication credentials from Replit Secrets.
     """
     import logging
     logger = logging.getLogger(__name__)
-    
-    # Default credentials - use these in development only!
-    # In production, use environment variables set in Replit Secrets
-    # If all else fails, we'll use these specific credentials that match what you've set
-    # in the App Secrets: U=snhuser and P=snhpass
-    FALLBACK_USERNAME = "snhuser"
-    FALLBACK_PASSWORD = "snhpass"
     
     # Detect if we're in a deployment
     is_deployment = bool(os.environ.get("REPL_DEPLOYMENT", False))
@@ -48,86 +28,25 @@ def get_auth_credentials():
     logger.info(f"Replit-specific keys: {replit_keys}")
     logger.info(f"Auth-related keys found (names only, not values): {auth_keys}")
     
-    # Test reading the TEST_ENV_VAR - this is a special variable set for debugging
-    # Using multiple methods to see which one works in production
-    logger.info("=== TEST_ENV_VAR Access Testing (HTTP AUTH) ===")
-    
-    # Standard method
-    test_var = os.environ.get("TEST_ENV_VAR")
-    logger.info(f"TEST_ENV_VAR value: '{test_var}'")
-    
-    # Using direct dictionary access
-    try:
-        test_var_direct = os.environ["TEST_ENV_VAR"] if "TEST_ENV_VAR" in os.environ else "not_found_direct"
-        logger.info(f"TEST_ENV_VAR using direct access: '{test_var_direct}'")
-    except Exception as e:
-        logger.warning(f"Error accessing TEST_ENV_VAR directly: {str(e)}")
-    
-    # Try multiple approaches to get credentials - prioritizing short names first
-    # Approach 1: Short variable names (more reliable in production)
-    username = os.environ.get("U")
+    username = os.environ.get("BASIC_AUTH_USERNAME")
     if username:
-        logger.info("Found username in U variable")
+        logger.info("Found username in BASIC_AUTH_USERNAME variable")
     
-    password = os.environ.get("P")
+    password = os.environ.get("BASIC_AUTH_PASSWORD")
     if password:
-        logger.info("Found password in P variable")
-    
-    # Approach 2: Original longer variable names
-    if not username:
-        username = os.environ.get("BASIC_AUTH_USERNAME")
-        if username:
-            logger.info("Found username in BASIC_AUTH_USERNAME variable")
-    
-    if not password:
-        password = os.environ.get("BASIC_AUTH_PASSWORD")
-        if password:
-            logger.info("Found password in BASIC_AUTH_PASSWORD variable")
-    
-    # Approach 3: Try alternate variable names (in case of renaming)
-    if not username:
-        username = os.environ.get("AUTH_USER")
-        if username:
-            logger.info("Found username in AUTH_USER variable")
-    
-    if not password:
-        password = os.environ.get("AUTH_PASS")
-        if password:
-            logger.info("Found password in AUTH_PASS variable")
-    
-    # Approach 4: Try with prefix
-    if not username:
-        username = os.environ.get("SECRETS_BASIC_AUTH_USERNAME")
-        if username:
-            logger.info("Found username in SECRETS_BASIC_AUTH_USERNAME variable")
-    
-    if not password:
-        password = os.environ.get("SECRETS_BASIC_AUTH_PASSWORD")
-        if password:
-            logger.info("Found password in SECRETS_BASIC_AUTH_PASSWORD variable")
+        logger.info("Found password in BASIC_AUTH_PASSWORD variable")
     
     # More detailed diagnostic info 
-    logger.info(f"U exists: {os.environ.get('U') is not None}")
-    logger.info(f"P exists: {os.environ.get('P') is not None}")
     logger.info(f"BASIC_AUTH_USERNAME exists: {os.environ.get('BASIC_AUTH_USERNAME') is not None}")
     logger.info(f"BASIC_AUTH_PASSWORD exists: {os.environ.get('BASIC_AUTH_PASSWORD') is not None}")
     
-    # Check if we're missing credentials after all attempts
+    # Check if we're missing credentials
     if not username or not password:
-        logger.warning("Authentication credentials not found in any environment variables")
-        
-        # In production, use the specific fallback that matches our App Secrets
+        logger.error("Authentication credentials not found in environment variables")
+        logger.error("Please ensure BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD are set in Replit Secrets")
         if is_deployment:
             logger.error("CRITICAL: Authentication credentials missing in production environment")
-            logger.error("Using hardcoded production fallback credentials that match App Secrets")
-            username = FALLBACK_USERNAME
-            password = FALLBACK_PASSWORD
-            logger.warning("Using hardcoded fallback credentials - App Secret issue detected")
-        else:
-            # Use defaults as fallback - this is only secure in development
-            username = DEFAULT_USERNAME
-            password = DEFAULT_PASSWORD
-            logger.info("Using default development credentials")
+            # We'll return None values which will make auth checks fail
         
     return username, password
 
@@ -219,13 +138,10 @@ def http_auth_required(f):
         # Log environment variables presence (without revealing values)
         has_username_env = bool(os.environ.get("BASIC_AUTH_USERNAME"))
         has_password_env = bool(os.environ.get("BASIC_AUTH_PASSWORD"))
-        has_u_env = bool(os.environ.get("U"))
-        has_p_env = bool(os.environ.get("P"))
-        logger.info(f"Environment variables - Username present: {has_username_env or has_u_env}, Password present: {has_password_env or has_p_env}")
-        logger.info(f"Short env vars - U present: {has_u_env}, P present: {has_p_env}")
+        logger.info(f"Environment variables - Username present: {has_username_env}, Password present: {has_password_env}")
         
         # Enhanced diagnostics for env vars
-        if not (has_username_env or has_u_env) or not (has_password_env or has_p_env):
+        if not has_username_env or not has_password_env:
             # Use get_auth_credentials for detailed diagnostics
             get_auth_credentials()
             
