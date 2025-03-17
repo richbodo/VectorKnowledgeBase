@@ -1,3 +1,4 @@
+
 # Python
 __pycache__/
 *.py[cod]
@@ -33,21 +34,31 @@ env/
 *.swo
 .DS_Store
 
-# Logs
+# Logs and databases
 *.log
 app.log
-
-# ChromaDB
 chroma_db/
+storage/
+attached_assets/
 
 # Testing
 .coverage
 htmlcov/
 .pytest_cache/
 .tox/
+coverage.xml
 
-# Replit specific
-attached_assets/
-.replit
-.breakpoints
-replit.nix 
+# Local development
+*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ChromaDB
+chroma_db/
+faiss_index/
+
+# Replit (uncomment if you want to version these)
+#.replit
+#replit.nix
