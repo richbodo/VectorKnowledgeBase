@@ -10,9 +10,12 @@ from flask import request, Response, session
 # Default credentials for development environments only
 # These defaults should NEVER be used in production!
 # For production deployments, use Replit Secrets to set:
-#   - BASIC_AUTH_USERNAME: A secure username
-#   - BASIC_AUTH_PASSWORD: A strong password
+#   - U: A secure username (Short form of BASIC_AUTH_USERNAME)
+#   - P: A strong password (Short form of BASIC_AUTH_PASSWORD)
 #   - SESSION_SECRET: A random string for session security
+# 
+# Note: We use short names like "U" and "P" because they seem to be more reliably 
+# accessible in production deployments than longer variable names.
 DEFAULT_USERNAME = "admin"
 DEFAULT_PASSWORD = "changeme123"
 
@@ -29,7 +32,7 @@ def get_auth_credentials():
     # Default credentials - use these in development only!
     # In production, use environment variables set in Replit Secrets
     # If all else fails, we'll use these specific credentials that match what you've set
-    # in the App Secrets: BASIC_AUTH_USERNAME=snhuser and BASIC_AUTH_PASSWORD=snhpass
+    # in the App Secrets: U=snhuser and P=snhpass
     FALLBACK_USERNAME = "snhuser"
     FALLBACK_PASSWORD = "snhpass"
     
@@ -60,12 +63,28 @@ def get_auth_credentials():
     except Exception as e:
         logger.warning(f"Error accessing TEST_ENV_VAR directly: {str(e)}")
     
-    # Try multiple approaches to get credentials
-    # Approach 1: Original variable names
-    username = os.environ.get("BASIC_AUTH_USERNAME")
-    password = os.environ.get("BASIC_AUTH_PASSWORD")
+    # Try multiple approaches to get credentials - prioritizing short names first
+    # Approach 1: Short variable names (more reliable in production)
+    username = os.environ.get("U")
+    if username:
+        logger.info("Found username in U variable")
     
-    # Approach 2: Try alternate variable names (in case of renaming)
+    password = os.environ.get("P")
+    if password:
+        logger.info("Found password in P variable")
+    
+    # Approach 2: Original longer variable names
+    if not username:
+        username = os.environ.get("BASIC_AUTH_USERNAME")
+        if username:
+            logger.info("Found username in BASIC_AUTH_USERNAME variable")
+    
+    if not password:
+        password = os.environ.get("BASIC_AUTH_PASSWORD")
+        if password:
+            logger.info("Found password in BASIC_AUTH_PASSWORD variable")
+    
+    # Approach 3: Try alternate variable names (in case of renaming)
     if not username:
         username = os.environ.get("AUTH_USER")
         if username:
@@ -76,7 +95,7 @@ def get_auth_credentials():
         if password:
             logger.info("Found password in AUTH_PASS variable")
     
-    # Approach 3: Try with prefix
+    # Approach 4: Try with prefix
     if not username:
         username = os.environ.get("SECRETS_BASIC_AUTH_USERNAME")
         if username:
@@ -88,6 +107,8 @@ def get_auth_credentials():
             logger.info("Found password in SECRETS_BASIC_AUTH_PASSWORD variable")
     
     # More detailed diagnostic info 
+    logger.info(f"U exists: {os.environ.get('U') is not None}")
+    logger.info(f"P exists: {os.environ.get('P') is not None}")
     logger.info(f"BASIC_AUTH_USERNAME exists: {os.environ.get('BASIC_AUTH_USERNAME') is not None}")
     logger.info(f"BASIC_AUTH_PASSWORD exists: {os.environ.get('BASIC_AUTH_PASSWORD') is not None}")
     
@@ -198,10 +219,13 @@ def http_auth_required(f):
         # Log environment variables presence (without revealing values)
         has_username_env = bool(os.environ.get("BASIC_AUTH_USERNAME"))
         has_password_env = bool(os.environ.get("BASIC_AUTH_PASSWORD"))
-        logger.info(f"Environment variables - Username present: {has_username_env}, Password present: {has_password_env}")
+        has_u_env = bool(os.environ.get("U"))
+        has_p_env = bool(os.environ.get("P"))
+        logger.info(f"Environment variables - Username present: {has_username_env or has_u_env}, Password present: {has_password_env or has_p_env}")
+        logger.info(f"Short env vars - U present: {has_u_env}, P present: {has_p_env}")
         
         # Enhanced diagnostics for env vars
-        if not has_username_env or not has_password_env:
+        if not (has_username_env or has_u_env) or not (has_password_env or has_p_env):
             # Use get_auth_credentials for detailed diagnostics
             get_auth_credentials()
             

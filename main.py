@@ -121,8 +121,14 @@ def create_app():
     has_session_secret = bool(os.environ.get("SESSION_SECRET"))
     has_auth_username = bool(os.environ.get("BASIC_AUTH_USERNAME"))
     has_auth_password = bool(os.environ.get("BASIC_AUTH_PASSWORD"))
+    has_u = bool(os.environ.get("U"))
+    has_p = bool(os.environ.get("P"))
+    
+    # Log both standard and short environment variables
     logger.info(f"Environment variables available - SESSION_SECRET: {has_session_secret}, "
                 f"BASIC_AUTH_USERNAME: {has_auth_username}, BASIC_AUTH_PASSWORD: {has_auth_password}")
+    logger.info(f"Short environment variables - U: {has_u}, P: {has_p}")
+    logger.info(f"Authentication available: {has_auth_username or has_u}, {has_auth_password or has_p}")
     
     # Enhanced environment variable diagnostics
     if is_deployment:
@@ -142,12 +148,16 @@ def create_app():
         logger.info(f"Deployment indicators - REPL_DEPLOYMENT: {has_deployment_indicator}, REPL_SLUG: {has_slug}, REPL_ID: {has_id}")
         
         # Log additional details about authentication variables (existence only, not values)
-        for auth_var in ["BASIC_AUTH_USERNAME", "BASIC_AUTH_PASSWORD", "SESSION_SECRET"]:
+        for auth_var in ["BASIC_AUTH_USERNAME", "BASIC_AUTH_PASSWORD", "SESSION_SECRET", "U", "P"]:
             value = os.environ.get(auth_var)
             if value:
                 logger.info(f"{auth_var} exists with length: {len(value)}")
             else:
-                logger.error(f"{auth_var} is MISSING in production environment - Set this in Replit App Secrets")
+                if auth_var in ["U", "P"]:
+                    # These are our fallback shorter variables, so only warn if they're missing
+                    logger.warning(f"{auth_var} is not found in production environment")
+                else:
+                    logger.error(f"{auth_var} is MISSING in production environment - Set this in Replit App Secrets")
     
     # Handle SESSION_SECRET for both deployment and development environments
     app.secret_key = os.environ.get("SESSION_SECRET")
