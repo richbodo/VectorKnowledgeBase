@@ -20,58 +20,146 @@ A custom `PrivacyLogFilter` class (located in `utils/privacy_log_handler.py`) pr
   - String interpolation (`query='sensitive'`)
   - Dictionary format (`'query': 'sensitive'`)
 
-### 2. Request Middleware Privacy
+### 2. Privacy Context Management
 
-Request middleware in `main.py` provides additional privacy protections:
+When executing sensitive operations, privacy context managers ensure that even in case of exceptions, sensitive information is never logged:
 
-- **Endpoint-Specific Controls**: More strict filtering for `/api/query` endpoints
-- **Headers Protection**: Sensitive headers like Authorization are automatically redacted
-- **Metadata-Only Logging**: For sensitive endpoints, only metadata is logged (not content):
-  - Request method and route
-  - Number of parameters (not their values)
-  - File metadata (filenames, content types) without content
+```python
+def search(self, query: str, k: int = 3, similarity_threshold: float = 0.1):
+    """Search for similar document chunks"""
+    with privacy_context(query):
+        # Inside this context, any exceptions will have query content redacted
+        results = self.collection.query(
+            query_texts=[query],
+            n_results=k
+        )
+        return process_results(results)
+```
 
-### 3. Enhanced Vector Search Privacy
+### 3. Request Middleware Privacy
 
-The vector search implementation in `services/vector_store.py` includes:
+All incoming HTTP requests are processed through middleware that removes sensitive information before logging:
 
-- **Privacy Context Manager**: Ensures query content isn't leaked in exceptions
-- **Error Sanitization**: Sanitizes error messages to remove query content
-- **Content Length Logging**: Logs only content length, not the content itself
-- **Traceback Protection**: Special handling of exception tracebacks to prevent leaking query content
+- Headers like `Authorization` are redacted
+- Query parameters containing potentially sensitive information are filtered
+- Request body content is analyzed for sensitive patterns and redacted
+- Only metadata about requests is logged, not content
 
-### 4. Embedding Service Privacy
+### 4. Error Handling with Privacy Protection
 
-The embedding service (`services/embedding_service.py`) implements:
+Exception handling throughout the application is designed to protect privacy:
 
-- **Zero Content Logging**: No logging of actual text being embedded
-- **Sanitized Error Handling**: Special exception handling to remove text content from error messages
-- **Exception Wrapping**: Catches and rewraps exceptions to prevent content leakage
+- Exception messages are sanitized before logging
+- Stack traces are filtered to remove sensitive data
+- Custom error responses never include the original query content
+- In case of failures, only generic error messages are returned to users
 
-### 5. API Route Privacy
+### 5. Privacy-Aware Logging Integration
 
-API query endpoints in `api/routes.py` implement:
+All loggers in the application use the privacy filter:
 
-- **Request Sanitization**: Logging only that a query was received, not its content
-- **Length-Only Metrics**: Logging only query length for diagnostic purposes
-- **Response Privacy**: Careful handling of response logging to avoid leaking sensitive data
+```python
+# Configuring loggers with privacy protection
+def setup_logging():
+    """Configure application logging with privacy controls"""
+    # Root logger configuration
+    root_logger = logging.getLogger()
+    add_privacy_filter_to_logger(root_logger)
+    
+    # Component-specific loggers
+    for logger_name in ["api", "services", "web"]:
+        logger = logging.getLogger(logger_name)
+        add_privacy_filter_to_logger(logger)
+```
+
+## Implementation Details
+
+### Privacy Patterns
+
+The following patterns are used to detect sensitive information:
+
+| Pattern Type | Description | Example | Replacement |
+|--------------|-------------|---------|------------|
+| Email | Detects email addresses | user@example.com | [EMAIL REDACTED] |
+| API Keys | Detects various API key formats | api_key="sk-1234..." | api_key="[API KEY REDACTED]" |
+| Bearer Tokens | Detects OAuth bearer tokens | Bearer eyJ0eXAi... | Bearer [TOKEN REDACTED] |
+| Query Content | Detects query content in various formats | query="sensitive info" | query="[QUERY CONTENT REDACTED]" |
+| PDF Content | Detects PDF file content in logs | %PDF-1.5... | [PDF CONTENT REDACTED] |
+| SK/P-Style Keys | Detects OpenAI-style API keys | sk-abcd1234... | [API KEY REDACTED] |
+
+### Pattern Implementation
+
+The pattern implementation uses regular expressions to match various formats of sensitive data:
+
+```python
+# Sample pattern implementations
+patterns = {
+    # Email addresses
+    'email': re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'),
+    
+    # API keys (looking for common patterns)
+    'api_key': re.compile(r'(api[_-]?key|token|key)["\']?\s*[:=]\s*["\']?([a-zA-Z0-9_\-\.]{20,})["\']?', re.I),
+    
+    # Query content (sanitize actual queries)
+    'query_content': re.compile(r'(query"?\s*[:=]\s*"?)([^"]+)("?)', re.IGNORECASE),
+    
+    # JSON query content (for API payloads)
+    'json_query': re.compile(r'("query":\s*")([^"]+)(")', re.IGNORECASE),
+}
+```
 
 ## Testing Privacy Controls
 
-You can test the privacy controls by:
+### Automated Privacy Testing
 
-1. Making a query request to `/api/query` endpoint
-2. Examining the logs to verify query content is properly redacted
-3. Intentionally causing an error (e.g., with malformed input) to verify error privacy
+The application includes automated tests to verify privacy protection:
 
-## Additional Considerations
+1. **Basic Filter Tests**: Verify that the privacy filter correctly redacts sensitive information
+2. **API Request Tests**: Ensure that API endpoints properly protect query content
+3. **Log Auditing**: Scan log files to verify no sensitive data is being logged
 
-- **Third-Party Services**: Ensure OpenAI API calls and other external services are properly filtered
-- **Log Rotation**: Logs should be regularly rotated and old logs securely deleted
-- **Monitoring**: Regularly audit logs to verify privacy controls are working
+### Manual Privacy Testing
 
-## Future Enhancements
+To manually test privacy controls:
 
-1. **Content Fingerprinting**: Implement content fingerprinting to catch data fragments
-2. **User-Specific Controls**: Allow users to specify additional privacy requirements
-3. **Data Minimization**: Further reduce logging of non-essential information
+1. Make API requests with sensitive information
+2. Check application logs to verify the information is redacted
+3. Intentionally trigger errors to ensure error messages don't contain sensitive data
+
+```bash
+# Example manual test
+curl -X POST -H "Content-Type: application/json" -H "X-API-Key: your_api_key" \
+  -d '{"query": "This is sensitive information"}' \
+  http://localhost:8080/api/query
+
+# Then check logs
+grep "sensitive information" app.log  # Should find no matches
+grep "QUERY CONTENT REDACTED" app.log  # Should find matches
+```
+
+## Best Practices for Developers
+
+When working with the application:
+
+1. **Never bypass the privacy filter**: All logging should use loggers with privacy filters applied
+2. **Use privacy context managers**: When processing sensitive data, always use privacy contexts
+3. **Sanitize before logging**: Always sanitize sensitive data before logging it
+4. **Test privacy after changes**: Always run privacy tests after making code changes
+5. **Update patterns as needed**: Add new patterns when new sensitive data formats are identified
+
+## Monitoring and Improvement
+
+To continuously monitor and improve privacy protection:
+
+1. **Log Analysis**: Regularly review logs for potential privacy leaks
+2. **Filter Pattern Updates**: Update regex patterns as new data formats emerge
+3. **Security Testing**: Conduct security testing to identify potential vulnerabilities
+4. **User Feedback**: Incorporate user feedback about privacy concerns
+
+## Related Resources
+
+- [PII Protection Implementation](./pii_protection.md)
+- [User PII Guide](./user_pii_guide.md)
+- [PII Implementation Guide](./pii_implementation_guide.md)
+- [Privacy Demo Script](./privacy_demo.py)
+- [Privacy Test Runner](../utils/run_privacy_tests.sh)

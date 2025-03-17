@@ -42,26 +42,7 @@
                            href="{{ url_for('web.diagnostics') }}">Diagnostics</a>
                     </li>
                 </ul>
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('monitoring.health_check') }}" target="_blank">
-                            <i class="fas fa-heartbeat"></i> Health Check
-                        </a>
-                    </li>
-                    {% if is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('web.logout') }}">
-                            <i class="fas fa-sign-out-alt"></i> Logout ({{ user_info.username }})
-                        </a>
-                    </li>
-                    {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('web.login') }}">
-                            <i class="fas fa-sign-in-alt"></i> Login
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
+                <!-- Navbar items removed as requested -->
             </div>
         </div>
     </nav>
@@ -91,7 +72,7 @@
                     <p class="mb-0">&copy; 2025 PDF Document Processing</p>
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <p class="mb-0">Version 1.0</p>
+                    <p class="mb-0">Version 0.01</p>
                 </div>
             </div>
         </div>

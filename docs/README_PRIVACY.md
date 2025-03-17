@@ -74,7 +74,13 @@ The privacy implementation is spread across several files:
 
 Planned future privacy enhancements:
 
-1. Biometric data detection and filtering
-2. Geographic data anonymization
+1. Machine learning-based PII detection for more accurate identification
+2. Automated PII scanning in uploaded documents
 3. User-configurable privacy controls
-4. Advanced pattern detection using AI-based data classification
+4. Enhanced privacy metrics and reporting
+
+## Related Documentation
+
+- [PII Protection Implementation](./pii_protection.md)
+- [User PII Guide](./user_pii_guide.md)
+- [PII Implementation Guide](./pii_implementation_guide.md)
