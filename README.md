@@ -2,11 +2,7 @@
 
 Vector DB and API for use with OpenAI custom GPTs to hook into with GPT Actions written in python using flask.  This is a simple intro to RAG LLM coding for me that allowed me to enable my custom GPT to access a library of hundreds of research papers that I have access to but the GPT couldn't find as easily.  
 
-<<<<<<< HEAD
-I implmented on Replit, using a bunch of other tools.  It should be possible to re-use this there.  My notes on this setup are [here](http://richbodo.pbworks.com/w/page/160057005/LLM%20RAG%20Intro), and my upload and API test tool is [here](https://github.com/richbodo/snh_bridge_test).
-=======
-I implemented on Replit.  It should be possible to re-use this there.  My notes on this setup are [here](http://richbodo.pbworks.com/w/page/160057005/LLM%20RAG%20Intro), and my upload and API test tool is [here](https://github.com/richbodo/snh_bridge_test).
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
+I implemented on Replit, using various tools for enhanced functionality. My notes on this setup are [here](http://richbodo.pbworks.com/w/page/160057005/LLM%20RAG%20Intro), and my upload and API test tool is [here](https://github.com/richbodo/snh_bridge_test).
 
 ## Table of Contents
 
@@ -22,7 +18,6 @@ I implemented on Replit.  It should be possible to re-use this there.  My notes 
 - [Development](#development)
 - [License](#license)
 
-<<<<<<< HEAD
 ## Documentation Index
 
 ### Core Documentation
@@ -40,9 +35,6 @@ I implemented on Replit.  It should be possible to re-use this there.  My notes 
 
 ### Documentation Index
 - [Documentation Overview](docs/README.md) - Master documentation index
-
-=======
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 ## Features
 
 - **PDF Processing**: Extract text from PDF documents with memory-efficient processing
@@ -52,11 +44,8 @@ I implemented on Replit.  It should be possible to re-use this there.  My notes 
 - **Web Interface**: User-friendly interface for uploading and querying documents
 - **Persistence**: Robust backup and restore functionality with automatic rotation
 - **Monitoring**: Built-in diagnostic tools for system health and database stats
-<<<<<<< HEAD
-=======
-- **PII Filtering**: Logs, headers, stuff like that
-- **Backup and restore SQLite**: Needed for persistence on Replit
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
+- **PII Filtering**: Enhanced privacy controls for logs, headers, and sensitive data
+- **Backup and restore**: Robust SQLite and ChromaDB persistence on Replit
 
 ## Quick Start
 
