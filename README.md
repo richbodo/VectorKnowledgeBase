@@ -2,7 +2,7 @@
 
 Vector DB and API for use with OpenAI custom GPTs to hook into with GPT Actions written in python using flask.  This is a simple intro to RAG LLM coding for me that allowed me to enable my custom GPT to access a library of hundreds of research papers that I have access to but the GPT couldn't find as easily.  
 
-I implmented on Replit, using a bunch of other tools.  It should be possible to re-use this there.  My notes on this setup are [here](http://richbodo.pbworks.com/w/page/160057005/LLM%20RAG%20Intro), and my upload and API test tool is [here](https://github.com/richbodo/snh_bridge_test).
+I implemented on Replit.  It should be possible to re-use this there.  My notes on this setup are [here](http://richbodo.pbworks.com/w/page/160057005/LLM%20RAG%20Intro), and my upload and API test tool is [here](https://github.com/richbodo/snh_bridge_test).
 
 ## Table of Contents
 
@@ -27,6 +27,8 @@ I implmented on Replit, using a bunch of other tools.  It should be possible to 
 - **Web Interface**: User-friendly interface for uploading and querying documents
 - **Persistence**: Robust backup and restore functionality with automatic rotation
 - **Monitoring**: Built-in diagnostic tools for system health and database stats
+- **PII Filtering**: Logs, headers, stuff like that
+- **Backup and restore SQLite**: Needed for persistence on Replit
 
 ## Quick Start
 
