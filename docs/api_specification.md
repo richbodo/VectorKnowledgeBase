@@ -1,7 +1,7 @@
 # PDF Processing API Specification
 
 ## Base URL
-The API is accessible at: `https://vector-knowledge-base-RichBodo.replit.app`
+The API is accessible when you deploy your instance from: https://github.com/richbodo/VectorKnowledgeBase
 
 The application is deployed using Replit's deployment service which automatically handles HTTPS and domain mapping. No port number is needed in the URL as Replit handles the port forwarding internally.
 
@@ -85,7 +85,7 @@ Upload a PDF document for processing and vector storage. The document will be au
 curl -X POST -F "file=@document.pdf" \
      -H "Accept: application/json" \
      -H "Authorization: Bearer your_vkb_api_key" \
-     https://vector-knowledge-base-RichBodo.replit.app/api/upload
+     https://your-deployed-instance.com/api/upload
 ```
 
 ### 2. Query Documents
