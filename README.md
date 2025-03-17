@@ -83,7 +83,7 @@ For detailed API documentation including authentication methods, endpoints, and 
 - **OpenAI**: Text embeddings and query processing
 - **ChromaDB**: Vector database for semantic search
 - **Object Storage**: Persistent storage for ChromaDB data with automatic backup rotation
-- **Backup System**: For details, see [Backup System Guide](docs/backup_system.md)
+- **Backup System**: For details, see [Backup System Guide](docs/BackupSystem.md)
 
 ## Deployment
 
@@ -107,7 +107,7 @@ For detailed API documentation including authentication methods, endpoints, and 
 4. **Configure Storage**
    - Ensure persistent storage is enabled
    - For production, enable Replit's Object Storage
-   - The backup system automatically manages data persistence (see [Backup System Guide](docs/backup_system.md))
+   - The backup system automatically manages data persistence (see [Backup System Guide](docs/BackupSystem.md))
    - In disk-constrained environments, use the `--skip-backup` flag with restore operations
 
 5. **Disk Space Management**
@@ -183,7 +183,7 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
 
 ## Development
 
-For more information on development and future research areas, please refer to [Project Roadmap](docs/roadmap.md).
+For more information on development and future research areas, please refer to [Project Roadmap](docs/Roadmap.md).
 
 ## License
 
