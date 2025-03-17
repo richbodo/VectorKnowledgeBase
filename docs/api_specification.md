@@ -136,7 +136,7 @@ Search through uploaded documents using semantic similarity. Results are retriev
 
 **Example Usage:**
 ```bash
-curl -X POST https://vector-knowledge-base-RichBodo.replit.app/api/query \
+curl -X POST https://your-deployed-instance.com/api/query \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer your_vkb_api_key" \

@@ -132,8 +132,8 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/yourusername/vector-knowledge-base.git
-   cd vector-knowledge-base
+   git clone https://github.com/richbodo/VectorKnowledgeBase.git
+   cd VectorKnowledgeBase
    ```
 
 2. **Set Up Environment**
@@ -221,10 +221,8 @@ When adding to this documentation set:
 
 ## License
 
-This project is MIT licensed. See LICENSE file for details.
+This project is GPLv3 licensed. See LICENSE file for details.
 
 ---
-
-Built with ❤️ on Replit.
 
 *Documentation last updated: March 17, 2025*
