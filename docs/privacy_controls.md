@@ -77,7 +77,23 @@ def setup_logging():
     for logger_name in ["api", "services", "web"]:
         logger = logging.getLogger(logger_name)
         add_privacy_filter_to_logger(logger)
+    
+    # External service loggers
+    for external_logger in ["openai", "openai._base_client", "httpx", "httpcore"]:
+        logger = logging.getLogger(external_logger)
+        add_privacy_filter_to_logger(logger)
 ```
+
+### 6. OpenAI API Request Protection
+
+Special patterns and filters ensure that sensitive query content is never exposed in OpenAI API request logs:
+
+- **Request JSON Data**: OpenAI API request payloads containing query text are redacted
+- **Embedding Requests**: Text submitted for embeddings is automatically filtered
+- **Debug Logging**: Even debug-level logs from the OpenAI client never expose sensitive content
+- **HTTP Request Chain**: All logs from the HTTP request chain (httpx, httpcore) are filtered
+
+This ensures that even when using third-party libraries like the OpenAI Python client, sensitive user queries are never exposed in logs.
 
 ## Implementation Details
 
@@ -93,6 +109,8 @@ The following patterns are used to detect sensitive information:
 | Query Content | Detects query content in various formats | query="sensitive info" | query="[QUERY CONTENT REDACTED]" |
 | PDF Content | Detects PDF file content in logs | %PDF-1.5... | [PDF CONTENT REDACTED] |
 | SK/P-Style Keys | Detects OpenAI-style API keys | sk-abcd1234... | [API KEY REDACTED] |
+| OpenAI Request Input | Detects query content in OpenAI API requests | 'input': ['search query text'] | 'input': ['[QUERY CONTENT REDACTED]'] |
+| OpenAI JSON Data | Detects query in full OpenAI request bodies | 'json_data': {...'input': ['search query text']...} | 'json_data': {...'input': ['[QUERY CONTENT REDACTED]']...} |
 
 ### Pattern Implementation
 
@@ -112,8 +130,16 @@ patterns = {
     
     # JSON query content (for API payloads)
     'json_query': re.compile(r'("query":\s*")([^"]+)(")', re.IGNORECASE),
+    
+    # OpenAI API request input patterns
+    'openai_request_input': re.compile(r'(\'input\':\s*\[[\'\"])([^\'\"]*)([\'\"]\])', re.IGNORECASE),
+    
+    # OpenAI JSON data pattern (for full request bodies)
+    'openai_json_data': re.compile(r'(\'json_data\':.+?\'input\':\s*\[[\'\"])([^\'\"]*)([\'\"]\])', re.IGNORECASE | re.DOTALL),
 }
 ```
+
+These patterns work together to provide comprehensive coverage for different formats of sensitive data. The OpenAI-specific patterns ensure that sensitive text is redacted from API calls to OpenAI's embedding and completion endpoints.
 
 ## Testing Privacy Controls
 
@@ -132,9 +158,10 @@ To manually test privacy controls:
 1. Make API requests with sensitive information
 2. Check application logs to verify the information is redacted
 3. Intentionally trigger errors to ensure error messages don't contain sensitive data
+4. Examine OpenAI API logs to verify query content is properly redacted
 
 ```bash
-# Example manual test
+# Example manual test for API endpoints
 curl -X POST -H "Content-Type: application/json" -H "X-API-Key: your_api_key" \
   -d '{"query": "This is sensitive information"}' \
   http://localhost:8080/api/query
@@ -142,7 +169,20 @@ curl -X POST -H "Content-Type: application/json" -H "X-API-Key: your_api_key" \
 # Then check logs
 grep "sensitive information" app.log  # Should find no matches
 grep "QUERY CONTENT REDACTED" app.log  # Should find matches
+
+# Testing OpenAI API request privacy
+grep "openai._base_client" app.log | grep "json_data"  # Should show redacted content
+grep "input.*sensitive information" app.log  # Should find no matches
 ```
+
+### Testing OpenAI API Privacy
+
+Special attention should be paid to testing the OpenAI API request privacy:
+
+1. **Debug Level Logging**: Configure logging to DEBUG level to capture all OpenAI API requests
+2. **Request Content Check**: Verify that query content is redacted in requests to the OpenAI API
+3. **Full Request Chain**: Check that all logs in the HTTP request chain (httpx, httpcore) are filtered
+4. **Error Handling**: Trigger errors during OpenAI API calls to verify error messages don't leak sensitive content
 
 ## Best Practices for Developers
 
@@ -153,6 +193,7 @@ When working with the application:
 3. **Sanitize before logging**: Always sanitize sensitive data before logging it
 4. **Test privacy after changes**: Always run privacy tests after making code changes
 5. **Update patterns as needed**: Add new patterns when new sensitive data formats are identified
+6. **External service logging**: When integrating external services (like OpenAI), ensure their logging components are filtered by applying privacy filters to their logger namespaces
 
 ## Monitoring and Improvement
 

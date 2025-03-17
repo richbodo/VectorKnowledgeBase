@@ -52,6 +52,14 @@ logging.getLogger('api').setLevel(log_level)
 logging.getLogger('web').setLevel(log_level)
 logging.getLogger('services').setLevel(log_level)
 
+# Apply privacy filter to OpenAI client loggers to protect query content
+from utils.privacy_log_handler import add_privacy_filter_to_logger
+add_privacy_filter_to_logger(logging.getLogger('openai'))
+add_privacy_filter_to_logger(logging.getLogger('openai._base_client'))
+add_privacy_filter_to_logger(logging.getLogger('httpx'))
+add_privacy_filter_to_logger(logging.getLogger('httpcore'))
+logger.info("Privacy filter applied to OpenAI client loggers")
+
 # In production, set SQLAlchemy and other verbose loggers to WARNING level
 if is_production:
     logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
