@@ -142,11 +142,7 @@ logger.info(f"Deployment mode detected: {is_deployment}")
     # Disable Flask's default redirect behavior
     app.url_map.strict_slashes = False
 
-<<<<<<< HEAD
-    # Add request logging middleware with enhanced privacy filtering
-=======
-    # Add request logging middleware
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
+# Add request logging middleware with enhanced privacy filtering
     @app.before_request
     def log_request_info():
         logger.info("=== New Request ===")
@@ -161,7 +157,6 @@ logger.info(f"Deployment mode detected: {is_deployment}")
                 safe_headers[header] = '[REDACTED]'
         
         logger.info(f"Headers: {safe_headers}")
-<<<<<<< HEAD
         
         # Filter and log request parameters based on endpoint type
         if request.path.startswith('/api/'):
@@ -205,8 +200,6 @@ logger.info(f"Deployment mode detected: {is_deployment}")
                 
             if request.files:
                 logger.info(f"Request contains files: {list(request.files.keys())}")
-=======
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
     # Defer vector store initialization until first request
     @app.before_request
