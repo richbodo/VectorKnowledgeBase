@@ -73,6 +73,51 @@ def create_app():
     logger.info(f"Deployment mode detected: {is_deployment}")
     
     # Enhanced logging for environment variables in production
+    # Test reading the new test variable using multiple methods
+    logger.info("=== Testing Environment Variable Access ===")
+    
+    # Method 1: Standard os.environ.get
+    test_var_1 = os.environ.get("TEST_ENV_VAR")
+    logger.info(f"TEST_ENV_VAR using os.environ.get: '{test_var_1}'")
+    
+    # Method 2: Direct os.environ dictionary
+    try:
+        test_var_2 = os.environ.get("TEST_ENV_VAR", "not_found_method2")
+        logger.info(f"TEST_ENV_VAR using os.environ.get with default: '{test_var_2}'")
+    except Exception as e:
+        logger.error(f"Error with os.environ.get: {str(e)}")
+    
+    # Method 3: Using getenv
+    try:
+        test_var_3 = os.getenv("TEST_ENV_VAR", "not_found_method3")
+        logger.info(f"TEST_ENV_VAR using os.getenv: '{test_var_3}'")
+    except Exception as e:
+        logger.error(f"Error with os.getenv: {str(e)}")
+    
+    # Method 4: Direct dictionary access
+    try:
+        test_var_4 = os.environ["TEST_ENV_VAR"] if "TEST_ENV_VAR" in os.environ else "not_found_method4"
+        logger.info(f"TEST_ENV_VAR using direct dictionary access: '{test_var_4}'")
+    except Exception as e:
+        logger.error(f"Error with direct dictionary access: {str(e)}")
+    
+    # Replit-specific method
+    try:
+        # Import only in the try block
+        from replit import db
+        logger.info("Replit DB module found, trying to access via Replit DB")
+        try:
+            # Try to read from Replit DB
+            test_var_replit = db.get("TEST_ENV_VAR")
+            logger.info(f"TEST_ENV_VAR using replit.db: '{test_var_replit}'")
+        except Exception as db_error:
+            logger.error(f"Error accessing replit.db: {str(db_error)}")
+    except ImportError:
+        logger.info("Replit module not available in this environment")
+    except Exception as import_error:
+        logger.error(f"Error importing replit module: {str(import_error)}")
+    
+    # Standard environment variable checks
     has_session_secret = bool(os.environ.get("SESSION_SECRET"))
     has_auth_username = bool(os.environ.get("BASIC_AUTH_USERNAME"))
     has_auth_password = bool(os.environ.get("BASIC_AUTH_PASSWORD"))
