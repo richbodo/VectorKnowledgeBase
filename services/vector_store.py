@@ -343,7 +343,6 @@ class VectorStore:
             logger.info(f"Current document count: {len(self.documents)}")
             logger.info(f"Sample document IDs: {list(self.documents.keys())[:3]}")
 
-<<<<<<< HEAD
             # Query ChromaDB with privacy protections
             try:
                 # Create a context manager to safely execute the query with privacy filtering
@@ -370,15 +369,6 @@ class VectorStore:
                         n_results=k * 3,  # Request more results to account for filtering
                         include=["documents", "metadatas", "distances"]
                     )
-=======
-            # Query ChromaDB
-            try:
-                results = self.collection.query(
-                    query_texts=[query],
-                    n_results=k * 3,  # Request more results to account for filtering
-                    include=["documents", "metadatas", "distances"]
-                )
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
                 
                 logger.info(f"ChromaDB search returned {len(results['ids'][0])} results")
             except Exception as query_error:

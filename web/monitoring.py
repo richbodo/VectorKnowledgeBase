@@ -10,10 +10,7 @@ from services.embedding_service import EmbeddingService
 from services.vector_store import VectorStore
 from config import CHROMA_DB_PATH
 from utils.object_storage import get_chroma_storage
-<<<<<<< HEAD
 from web.auth import auth_required, is_authenticated, get_user_info
-=======
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 logger = logging.getLogger(__name__)
 
@@ -50,17 +47,12 @@ def health_check():
         }), 500
 
 @bp.route('/test-openai', methods=['GET'])
-<<<<<<< HEAD
 @auth_required
 def test_openai_connection():
     """Test OpenAI API connection and display diagnostic information"""
     # Get authentication info for the template
     is_auth = is_authenticated()
     user_info = get_user_info() if is_auth else None
-=======
-def test_openai_connection():
-    """Test OpenAI API connection and display diagnostic information"""
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
     try:
         api_key = os.environ.get("OPENAI_API_KEY", "")
         key_info = {
@@ -92,7 +84,6 @@ def test_openai_connection():
             'embedding_dimension': len(embedding) if embedding else None
         }
 
-<<<<<<< HEAD
         return render_template('monitoring/openai_test.html', 
                           diagnostic_info=diagnostic_info,
                           is_authenticated=is_auth,
@@ -108,15 +99,6 @@ def test_openai_connection():
 
 @bp.route('/database-diagnostic', methods=['GET'])
 @auth_required
-=======
-        return render_template('monitoring/openai_test.html', diagnostic_info=diagnostic_info)
-
-    except Exception as e:
-        logger.error(f"Error in OpenAI test endpoint: {str(e)}", exc_info=True)
-        return render_template('error.html', error="OpenAI test failed"), 500
-
-@bp.route('/database-diagnostic', methods=['GET'])
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 def database_diagnostic():
     """Detailed database diagnostic endpoint that analyzes ChromaDB state"""
     try:
@@ -270,7 +252,6 @@ def database_diagnostic():
         else:
             # Format the JSON for readability in HTML
             formatted_json = json.dumps(result, indent=2)
-<<<<<<< HEAD
             
             # Get authentication info for the template
             is_auth = is_authenticated()
@@ -301,16 +282,3 @@ def database_diagnostic():
                              error=f"Database diagnostic failed: {str(e)}", 
                              is_authenticated=is_auth,
                              user_info=user_info), 500
-=======
-            return render_template('monitoring/database_diagnostic.html', 
-                                  diagnostic_data=result,
-                                  formatted_json=formatted_json)
-    
-    except Exception as e:
-        logger.error(f"Error in database diagnostic endpoint: {str(e)}", exc_info=True)
-        return jsonify({
-            "status": "error",
-            "message": f"Database diagnostic failed: {str(e)}",
-            "traceback": traceback.format_exc()
-        }), 500
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531

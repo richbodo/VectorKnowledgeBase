@@ -77,7 +77,7 @@ def create_app():
     
     # Detect deployment mode
     is_deployment = bool(os.environ.get("REPL_DEPLOYMENT", False))
-logger.info(f"Deployment mode detected: {is_deployment}")
+    logger.info(f"Deployment mode detected: {is_deployment}")
     
     # Enhanced logging for environment variables in production
     
@@ -142,7 +142,7 @@ logger.info(f"Deployment mode detected: {is_deployment}")
     # Disable Flask's default redirect behavior
     app.url_map.strict_slashes = False
 
-# Add request logging middleware with enhanced privacy filtering
+    # Add request logging middleware with enhanced privacy filtering
     @app.before_request
     def log_request_info():
         logger.info("=== New Request ===")

@@ -67,12 +67,29 @@ def check_auth(username, password):
     return username == expected_username and password == expected_password
 
 def authenticate():
-    """Send a 401 response that enables basic auth"""
-    return Response(
-        'Could not verify your access level for that URL.\n'
-        'You have to login with proper credentials', 401,
-        {'WWW-Authenticate': 'Basic realm="Login Required"'}
-    )
+    """
+    Send a 401 response that enables basic auth or redirects to login page
+    
+    This is enhanced to support both browser-based and API authentication:
+    - Browser requests get a redirect to the login page
+    - API requests get a proper 401 with WWW-Authenticate header
+    """
+    from flask import redirect, url_for, request
+    
+    # Check if this seems like a browser request (based on Accept header)
+    accept_header = request.headers.get('Accept', '')
+    is_browser_request = 'text/html' in accept_header
+    
+    if is_browser_request:
+        # For browser requests, redirect to the login page
+        return redirect(url_for('web.login'))
+    else:
+        # For API requests, send a standard 401 response
+        return Response(
+            'Could not verify your access level for that URL.\n'
+            'You have to login with proper credentials', 401,
+            {'WWW-Authenticate': 'Basic realm="Login Required"'}
+        )
 
 def session_authenticated():
     """Check if user is authenticated through session"""
