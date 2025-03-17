@@ -40,6 +40,7 @@ app.log
 chroma_db/
 storage/
 attached_assets/
+/attached_assets/
 
 # Testing
 .coverage
