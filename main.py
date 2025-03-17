@@ -72,12 +72,37 @@ def create_app():
     is_deployment = bool(os.environ.get("REPL_DEPLOYMENT", False))
     logger.info(f"Deployment mode detected: {is_deployment}")
     
-    # Log availability of environment variables (without revealing values)
+    # Enhanced logging for environment variables in production
     has_session_secret = bool(os.environ.get("SESSION_SECRET"))
     has_auth_username = bool(os.environ.get("BASIC_AUTH_USERNAME"))
     has_auth_password = bool(os.environ.get("BASIC_AUTH_PASSWORD"))
     logger.info(f"Environment variables available - SESSION_SECRET: {has_session_secret}, "
                 f"BASIC_AUTH_USERNAME: {has_auth_username}, BASIC_AUTH_PASSWORD: {has_auth_password}")
+    
+    # Enhanced environment variable diagnostics
+    if is_deployment:
+        logger.info("=== Production Environment Diagnostics ===")
+        env_keys = sorted(os.environ.keys())
+        replit_keys = [k for k in env_keys if k.startswith('REPL_')]
+        secrets_keys = [k for k in env_keys if 'SECRET' in k or 'AUTH' in k or 'PASSWORD' in k or 'KEY' in k]
+        logger.info(f"Total environment variables: {len(env_keys)}")
+        logger.info(f"Replit-specific keys: {replit_keys}")
+        logger.info(f"Secret-related keys (names only): {[k for k in secrets_keys]}")
+        
+        # Specifically check for App Secrets vs Account Environment
+        logger.info("Production secrets diagnostics:")
+        has_deployment_indicator = bool(os.environ.get("REPL_DEPLOYMENT", False))
+        has_slug = bool(os.environ.get("REPL_SLUG", False))
+        has_id = bool(os.environ.get("REPL_ID", False))
+        logger.info(f"Deployment indicators - REPL_DEPLOYMENT: {has_deployment_indicator}, REPL_SLUG: {has_slug}, REPL_ID: {has_id}")
+        
+        # Log additional details about authentication variables (existence only, not values)
+        for auth_var in ["BASIC_AUTH_USERNAME", "BASIC_AUTH_PASSWORD", "SESSION_SECRET"]:
+            value = os.environ.get(auth_var)
+            if value:
+                logger.info(f"{auth_var} exists with length: {len(value)}")
+            else:
+                logger.error(f"{auth_var} is MISSING in production environment - Set this in Replit App Secrets")
     
     # Handle SESSION_SECRET for both deployment and development environments
     app.secret_key = os.environ.get("SESSION_SECRET")
