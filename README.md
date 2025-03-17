@@ -1,6 +1,6 @@
 # PDF Knowledge Base
 
-Vector DB and API for use with OpenAI custom GPTs to hook into with GPT Actions written in python using flask.  This is a simple intro to RAG LLM coding for me that allowed me to enable my custom GPT to access a library of hundreds of research papers that I have access to but the GPT couldn't find as easily.  
+Vector DB and API for use with OpenAI custom GPTs to hook into with GPT Actions written in python using flask. This is a simple intro to RAG LLM coding for me that allowed me to enable my custom GPT to access a library of hundreds of research papers that I have access to but the GPT couldn't find as easily.  
 
 I implemented on Replit, using various tools for enhanced functionality. My notes on this setup are [here](http://richbodo.pbworks.com/w/page/160057005/LLM%20RAG%20Intro), and my upload and API test tool is [here](https://github.com/richbodo/snh_bridge_test).
 
@@ -16,6 +16,8 @@ I implemented on Replit, using various tools for enhanced functionality. My note
   - [Deploying on Replit](#deploying-on-replit)
   - [Deploying on Linux Server](#deploying-on-linux-server)
 - [Development](#development)
+- [Testing Tools](#testing-tools)
+- [Documentation](#documentation)
 - [License](#license)
 
 ## Documentation Index
@@ -33,8 +35,6 @@ I implemented on Replit, using various tools for enhanced functionality. My note
 - [PII Implementation Guide](docs/pii_implementation_guide.md) - Technical guide for PII protection
 - [User PII Guide](docs/user_pii_guide.md) - End-user focused PII information
 
-### Documentation Index
-- [Documentation Overview](docs/README.md) - Master documentation index
 ## Features
 
 - **PDF Processing**: Extract text from PDF documents with memory-efficient processing
@@ -61,7 +61,6 @@ I implemented on Replit, using various tools for enhanced functionality. My note
 2. Install dependencies: `pip install -r requirements.txt`
 3. Set environment variables:
    ```
-<<<<<<< HEAD
    # Required for functionality
    export OPENAI_API_KEY="your_openai_api_key"
    export VKB_API_KEY="your_custom_api_key"
@@ -70,21 +69,13 @@ I implemented on Replit, using various tools for enhanced functionality. My note
    export SESSION_SECRET="your_random_secret_key"
    export BASIC_AUTH_USERNAME="your_secure_username"
    export BASIC_AUTH_PASSWORD="your_secure_password"
-=======
-   export OPENAI_API_KEY="your_openai_api_key"
-   export VKB_API_KEY="your_custom_api_key"
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
    ```
 4. Run the application: `python main.py`
 5. Access the web interface at `http://localhost:5000`
 
 ## API Usage
 
-<<<<<<< HEAD
 For detailed API documentation including authentication methods, endpoints, and example usage, see [API Specification](docs/api_specification.md).
-=======
-For detailed API documentation including authentication methods, endpoints, and example usage, see [api_specification.md](api_specification.md).
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 ## Architecture
 
@@ -93,11 +84,7 @@ For detailed API documentation including authentication methods, endpoints, and 
 - **OpenAI**: Text embeddings and query processing
 - **ChromaDB**: Vector database for semantic search
 - **Object Storage**: Persistent storage for ChromaDB data with automatic backup rotation
-<<<<<<< HEAD
 - **Backup System**: For details, see [Backup System Guide](docs/BackupSystem.md)
-=======
-- **Backup System**: For details, see [BackupSystem.md](BackupSystem.md)
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 ## Deployment
 
@@ -106,7 +93,6 @@ For detailed API documentation including authentication methods, endpoints, and 
 1. **Fork the Repository**
    - Create a new Replit project importing from GitHub repository
 
-<<<<<<< HEAD
 2. **Set Required Environment Variables in Replit Secrets**
    - `OPENAI_API_KEY`: Your OpenAI API key for embeddings and queries
    - `VKB_API_KEY`: Custom API key for API endpoint authentication
@@ -115,11 +101,6 @@ For detailed API documentation including authentication methods, endpoints, and 
    - `BASIC_AUTH_PASSWORD`: Strong password for HTTP Basic Authentication
    
    > **IMPORTANT**: For production deployments, always use Replit Secrets rather than environment variables in .env files or code. See [Authentication Guide](docs/authentication.md) for detailed setup instructions.
-=======
-2. **Set Required Environment Variables**
-   - `OPENAI_API_KEY`: Your OpenAI API key for embeddings and queries
-   - `VKB_API_KEY`: Custom API key for API endpoint authentication
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 3. **Install Dependencies**
    - Replit will automatically install dependencies from pyproject.toml
@@ -127,11 +108,7 @@ For detailed API documentation including authentication methods, endpoints, and 
 4. **Configure Storage**
    - Ensure persistent storage is enabled
    - For production, enable Replit's Object Storage
-<<<<<<< HEAD
    - The backup system automatically manages data persistence (see [Backup System Guide](docs/BackupSystem.md))
-=======
-   - The backup system automatically manages data persistence (see BackupSystem.md)
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
    - In disk-constrained environments, use the `--skip-backup` flag with restore operations
 
 5. **Disk Space Management**
@@ -170,7 +147,6 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
 
 3. **Configure Environment Variables**
    ```bash
-<<<<<<< HEAD
    # Required API keys
    export OPENAI_API_KEY="your_openai_api_key"
    export VKB_API_KEY="your_custom_api_key"
@@ -185,13 +161,6 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
    ```
    
    > **Security Note**: In production, use a secrets management solution instead of setting environment variables directly in shell scripts.
-=======
-   export OPENAI_API_KEY="your_openai_api_key"
-   export VKB_API_KEY="your_custom_api_key"
-   # Optional: Configure ChromaDB location
-   export CHROMADB_DIR="/path/to/persistent/storage"
-   ```
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
 
 4. **Run for Development**
    ```bash
@@ -215,11 +184,42 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
 
 ## Development
 
-<<<<<<< HEAD
 For more information on development and future research areas, please refer to [Project Roadmap](docs/Roadmap.md).
-=======
-For more information on development and future research areas, please refer to [Roadmap.md](Roadmap.md).
->>>>>>> 446e53914c5d9f82f391a8f0f259dd39892a7531
+
+## Testing Tools
+
+The following scripts are available for testing privacy and PII protection features:
+
+- `utils/test_privacy.py` - Test script for privacy controls in API requests
+- `utils/test_privacy_filter.py` - Test script for privacy log filter functionality
+- `utils/run_privacy_tests.sh` - Shell script to run comprehensive privacy tests
+- `docs/privacy_demo.py` - Demonstration of privacy features
+
+## Documentation
+
+### Using the Documentation
+
+- Developers should start with the implementation guides
+- End users should refer to the user guides
+- System administrators should review both for complete understanding
+
+### Best Practices
+
+When working with the Vector Knowledge Base application:
+
+1. Always prioritize privacy and security
+2. Regularly test privacy controls after making changes
+3. Keep documentation updated with implementation changes
+4. Report any privacy or security concerns immediately
+
+### Contributing to Documentation
+
+When adding to this documentation set:
+
+1. Maintain consistent formatting
+2. Include concrete examples
+3. Separate technical and user-focused content
+4. Cross-reference related documentation
 
 ## License
 
@@ -228,3 +228,5 @@ This project is MIT licensed. See LICENSE file for details.
 ---
 
 Built with ❤️ on Replit.
+
+*Documentation last updated: March 17, 2025*
