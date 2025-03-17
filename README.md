@@ -18,6 +18,24 @@ I implmented on Replit, using a bunch of other tools.  It should be possible to 
 - [Development](#development)
 - [License](#license)
 
+## Documentation Index
+
+### Core Documentation
+- [API Specification](docs/api_specification.md) - Detailed API endpoint documentation
+- [Authentication Guide](docs/authentication.md) - Authentication setup and configuration
+- [Backup System Guide](docs/BackupSystem.md) - ChromaDB backup and persistence details
+- [Replit Secrets Guide](docs/replit_secrets_guide.md) - Managing secrets in Replit environments
+- [Project Roadmap](docs/Roadmap.md) - Future development plans and research areas
+
+### Privacy and Security
+- [Privacy Controls](docs/privacy_controls.md) - Implementation of privacy features
+- [PII Protection Overview](docs/pii_protection.md) - Personal Identifiable Information protection
+- [PII Implementation Guide](docs/pii_implementation_guide.md) - Technical guide for PII protection
+- [User PII Guide](docs/user_pii_guide.md) - End-user focused PII information
+
+### Documentation Index
+- [Documentation Overview](docs/README.md) - Master documentation index
+
 ## Features
 
 - **PDF Processing**: Extract text from PDF documents with memory-efficient processing
@@ -65,7 +83,7 @@ For detailed API documentation including authentication methods, endpoints, and 
 - **OpenAI**: Text embeddings and query processing
 - **ChromaDB**: Vector database for semantic search
 - **Object Storage**: Persistent storage for ChromaDB data with automatic backup rotation
-- **Backup System**: For details, see [BackupSystem.md](BackupSystem.md)
+- **Backup System**: For details, see [Backup System Guide](docs/BackupSystem.md)
 
 ## Deployment
 
@@ -81,7 +99,7 @@ For detailed API documentation including authentication methods, endpoints, and 
    - `BASIC_AUTH_USERNAME`: Secure username for HTTP Basic Authentication
    - `BASIC_AUTH_PASSWORD`: Strong password for HTTP Basic Authentication
    
-   > **IMPORTANT**: For production deployments, always use Replit Secrets rather than environment variables in .env files or code. See [Authentication.md](docs/Authentication.md) for detailed setup instructions.
+   > **IMPORTANT**: For production deployments, always use Replit Secrets rather than environment variables in .env files or code. See [Authentication Guide](docs/authentication.md) for detailed setup instructions.
 
 3. **Install Dependencies**
    - Replit will automatically install dependencies from pyproject.toml
@@ -89,7 +107,7 @@ For detailed API documentation including authentication methods, endpoints, and 
 4. **Configure Storage**
    - Ensure persistent storage is enabled
    - For production, enable Replit's Object Storage
-   - The backup system automatically manages data persistence (see BackupSystem.md)
+   - The backup system automatically manages data persistence (see [Backup System Guide](docs/BackupSystem.md))
    - In disk-constrained environments, use the `--skip-backup` flag with restore operations
 
 5. **Disk Space Management**
