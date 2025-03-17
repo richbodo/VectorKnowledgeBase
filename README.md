@@ -1,4 +1,4 @@
-# PDF Knowledge Base
+# Vector Knowledge Base
 
 Vector DB and API for use with OpenAI custom GPTs to hook into with GPT Actions written in python using flask. This is a simple intro to RAG LLM coding for me that allowed me to enable my custom GPT to access a library of hundreds of research papers that I have access to but the GPT couldn't find as easily.  
 
@@ -30,10 +30,8 @@ I implemented on Replit, using various tools for enhanced functionality. My note
 - [Project Roadmap](docs/Roadmap.md) - Future development plans and research areas
 
 ### Privacy and Security
-- [Privacy Controls](docs/privacy_controls.md) - Implementation of privacy features
-- [PII Protection Overview](docs/pii_protection.md) - Personal Identifiable Information protection
-- [PII Implementation Guide](docs/pii_implementation_guide.md) - Technical guide for PII protection
-- [User PII Guide](docs/user_pii_guide.md) - End-user focused PII information
+- [Privacy and PII Protection Guide](docs/privacy_and_pii_protection.md) - Comprehensive guide to privacy features and PII protection
+- [Privacy Demo Script](docs/privacy_demo.py) - Interactive demonstration of privacy features
 
 ## Features
 
@@ -134,8 +132,8 @@ This is just some auto-generated stuff that Claude wrote - I haven't deployed th
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/yourusername/pdf-knowledge-base.git
-   cd pdf-knowledge-base
+   git clone https://github.com/yourusername/vector-knowledge-base.git
+   cd vector-knowledge-base
    ```
 
 2. **Set Up Environment**

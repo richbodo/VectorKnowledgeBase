@@ -1,4 +1,4 @@
-# PDF Knowledge Base Roadmap
+# Vector Knowledge Base Roadmap
 
 ## Future Research Areas
 
