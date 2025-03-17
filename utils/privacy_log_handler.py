@@ -34,11 +34,26 @@ class PrivacyLogFilter(logging.Filter):
             # OAuth/Bearer tokens
             'bearer_token': re.compile(r'bearer\s+([a-zA-Z0-9_\-\.]{20,})', re.I),
             
-            # Query content (sanitize actual queries)
-            'query_content': re.compile(r'(query"?\s*[:=]\s*"?)([^"]+)("?)'),
+            # Query content (sanitize actual queries) - extended to catch more patterns
+            'query_content': re.compile(r'(query"?\s*[:=]\s*"?)([^"]+)("?)', re.IGNORECASE),
             
             # JSON query content (for API payloads)
-            'json_query': re.compile(r'("query":\s*")([^"]+)(")'),
+            'json_query': re.compile(r'("query":\s*")([^"]+)(")', re.IGNORECASE),
+            
+            # Form parameter query content
+            'form_query': re.compile(r'(query=)([^&]+)(&|$)', re.IGNORECASE),
+            
+            # URL parameter query content
+            'url_query': re.compile(r'(\?|&)query=([^&]+)(&|$)', re.IGNORECASE),
+            
+            # Query as dictionary key-value pair
+            'dict_query': re.compile(r'([\'"]query[\'"]\s*:\s*[\'"])([^\'"]+)([\'"])', re.IGNORECASE),
+            
+            # Query in string interpolation
+            'f_string_query': re.compile(r'(query\s*=\s*f?[\'"])([^\'"]+)([\'"])', re.IGNORECASE),
+            
+            # Query in log message
+            'log_query': re.compile(r'(query:\s*)([^\n\r]+)($|\n|\r)', re.IGNORECASE),
             
             # PDF file content indicators
             'pdf_content': re.compile(r'(%PDF-\d+\.\d+.{10,100})'),
@@ -99,6 +114,21 @@ class PrivacyLogFilter(logging.Filter):
                 # Redact JSON query content
                 message = self.patterns['json_query'].sub(r'\1[QUERY CONTENT REDACTED]\3', message)
                 
+                # Redact form parameter query content
+                message = self.patterns['form_query'].sub(r'\1[QUERY CONTENT REDACTED]\3', message)
+                
+                # Redact URL parameter query content
+                message = self.patterns['url_query'].sub(r'\1query=[QUERY CONTENT REDACTED]\3', message)
+                
+                # Redact dictionary key-value query content
+                message = self.patterns['dict_query'].sub(r'\1[QUERY CONTENT REDACTED]\3', message)
+                
+                # Redact f-string query content
+                message = self.patterns['f_string_query'].sub(r'\1[QUERY CONTENT REDACTED]\3', message)
+                
+                # Redact query in log messages
+                message = self.patterns['log_query'].sub(r'\1[QUERY CONTENT REDACTED]\3', message)
+                
                 # Redact PDF content
                 message = self.patterns['pdf_content'].sub('[PDF CONTENT REDACTED]', message)
                 
@@ -143,6 +173,16 @@ class PrivacyLogFilter(logging.Filter):
                                     sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
                                 elif pattern_name == 'json_query':
                                     sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
+                                elif pattern_name == 'form_query':
+                                    sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
+                                elif pattern_name == 'url_query':
+                                    sanitized_value = pattern.sub(r'\1query=[QUERY CONTENT REDACTED]\3', sanitized_value)
+                                elif pattern_name == 'dict_query':
+                                    sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
+                                elif pattern_name == 'f_string_query':
+                                    sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
+                                elif pattern_name == 'log_query':
+                                    sanitized_value = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_value)
                                 elif pattern_name == 'pdf_content':
                                     sanitized_value = pattern.sub('[PDF CONTENT REDACTED]', sanitized_value)
                                 elif pattern_name == 'sk_api_keys':
@@ -177,6 +217,16 @@ class PrivacyLogFilter(logging.Filter):
                                 elif pattern_name == 'query_content':
                                     sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
                                 elif pattern_name == 'json_query':
+                                    sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
+                                elif pattern_name == 'form_query':
+                                    sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
+                                elif pattern_name == 'url_query':
+                                    sanitized_arg = pattern.sub(r'\1query=[QUERY CONTENT REDACTED]\3', sanitized_arg)
+                                elif pattern_name == 'dict_query':
+                                    sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
+                                elif pattern_name == 'f_string_query':
+                                    sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
+                                elif pattern_name == 'log_query':
                                     sanitized_arg = pattern.sub(r'\1[QUERY CONTENT REDACTED]\3', sanitized_arg)
                                 elif pattern_name == 'pdf_content':
                                     sanitized_arg = pattern.sub('[PDF CONTENT REDACTED]', sanitized_arg)

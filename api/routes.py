@@ -144,21 +144,36 @@ def upload_document():
 def query_documents():
     """Query endpoint for semantic search"""
     try:
+        # Log request with privacy protection
+        logger.info("API query endpoint called - processing with privacy filtering")
+        
         # Check if request is JSON or form data
         if request.is_json:
+            logger.info("Received JSON query request")
             data = request.get_json()
         else:
+            logger.info("Received form/query-parameter query request")
             data = request.form.to_dict() or request.args.to_dict()
         
-        # Get query parameter from different possible sources
+        # Get query parameter from different possible sources (but don't log the actual query)
         query = data.get('query', '').strip() if data else ''
         
-        if not query:
+        # Only log that we received a query, not the content
+        if query:
+            logger.info("Valid query received - [QUERY CONTENT REDACTED]")
+        else:
+            logger.info("Empty query received")
             return json_response({"error": "Query cannot be empty"}, 400)
 
+        # Extra sanitation to prevent logging sensitive query content
+        safe_query = query  # Keep the actual query for processing
+        
+        # Log information about processing but not the query itself
+        logger.info(f"Processing query for semantic search (character length: {len(safe_query)})")
+        
         vector_store = VectorStore.get_instance()
         results, error_msg = vector_store.search(
-            query=query,
+            query=safe_query,
             k=3,
             similarity_threshold=0.1
         )

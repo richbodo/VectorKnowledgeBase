@@ -135,7 +135,7 @@ def create_app():
     # Disable Flask's default redirect behavior
     app.url_map.strict_slashes = False
 
-    # Add request logging middleware
+    # Add request logging middleware with enhanced privacy filtering
     @app.before_request
     def log_request_info():
         logger.info("=== New Request ===")
@@ -150,6 +150,49 @@ def create_app():
                 safe_headers[header] = '[REDACTED]'
         
         logger.info(f"Headers: {safe_headers}")
+        
+        # Filter and log request parameters based on endpoint type
+        if request.path.startswith('/api/'):
+            # API requests need more careful filtering
+            
+            # For query endpoint, completely redact request data
+            if '/api/query' in request.path:
+                logger.info("API query endpoint called - request data redacted for privacy")
+                # Don't log any request body content for query endpoints
+            else:
+                # For other API endpoints, log with care
+                if request.is_json:
+                    # Log that we received JSON but don't log the content
+                    logger.info("Request contains JSON data (content not logged)")
+                
+                # Log basic form or query param info without their values
+                if request.args:
+                    logger.info(f"Request contains {len(request.args)} URL parameters (values not logged)")
+                
+                if request.form:
+                    logger.info(f"Request contains {len(request.form)} form fields (values not logged)")
+                
+                # For file uploads, log only metadata
+                if request.files:
+                    file_info = {}
+                    for key, file in request.files.items():
+                        if file.filename:
+                            file_info[key] = {
+                                "filename": file.filename,
+                                "content_type": file.content_type
+                            }
+                    logger.info(f"Request files: {file_info}")
+        else:
+            # For non-API routes, we can be less restrictive but still filter
+            # Only log existence of parameters, not their values
+            if request.args:
+                logger.info(f"Request contains URL parameters: {list(request.args.keys())}")
+            
+            if request.form:
+                logger.info(f"Request contains form parameters: {list(request.form.keys())}")
+                
+            if request.files:
+                logger.info(f"Request contains files: {list(request.files.keys())}")
 
     # Defer vector store initialization until first request
     @app.before_request

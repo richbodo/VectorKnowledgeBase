@@ -36,16 +36,32 @@ class EmbeddingService:
                 logger.error("Empty text provided for embedding generation")
                 return None
 
-            logger.info(f"Generating embedding for text of length: {len(text)} chars")
-            logger.debug(f"Text preview (first 100 chars): {text[:100]}...")
-            logger.debug(f"OpenAI API Key configured: {bool(openai.api_key)}")
+            # Privacy-enhanced logging - don't log text content
+            text_length = len(text) if text else 0
+            logger.info(f"Generating embedding for text of length: {text_length} chars")
+            
+            # No text preview to avoid logging content
+            logger.debug("OpenAI API configuration status:")
+            logger.debug(f"API Key configured: {bool(openai.api_key)}")
             logger.debug(f"Using model: {EMBEDDING_MODEL}")
 
+            # Log API call without content details
             logger.info("Making API call to OpenAI embeddings endpoint...")
-            response = openai.embeddings.create(
-                input=[text],  # Input must be a list of strings
-                model=EMBEDDING_MODEL
-            )
+            
+            # Use exception handling to prevent embedding content from appearing in error logs
+            try:
+                response = openai.embeddings.create(
+                    input=[text],  # Input must be a list of strings
+                    model=EMBEDDING_MODEL
+                )
+            except Exception as api_error:
+                # Privacy-enhanced error handling - don't include text in error messages
+                error_message = str(api_error)
+                if text and len(text) > 10 and text[:10] in error_message:
+                    sanitized_error = error_message.replace(text, "[TEXT CONTENT REDACTED]")
+                    raise Exception(f"API error (sanitized): {sanitized_error}")
+                raise
+                
             logger.info("Successfully received response from OpenAI API")
 
             embedding = response.data[0].embedding

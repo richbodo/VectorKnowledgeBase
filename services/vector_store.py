@@ -335,19 +335,40 @@ class VectorStore:
                 logger.warning("No documents in vector store")
                 return [], "No documents available for search"
 
-            logger.info(f"Searching for: {query} (top {k} results, threshold {similarity_threshold})")
+            # Privacy-enhanced logging: Don't log the actual query content
+            query_length = len(query) if query else 0
+            logger.info(f"Performing semantic search (query length: {query_length}, top {k} results, threshold {similarity_threshold})")
             
             # Log the count of documents for diagnostic purposes
             logger.info(f"Current document count: {len(self.documents)}")
             logger.info(f"Sample document IDs: {list(self.documents.keys())[:3]}")
 
-            # Query ChromaDB
+            # Query ChromaDB with privacy protections
             try:
-                results = self.collection.query(
-                    query_texts=[query],
-                    n_results=k * 3,  # Request more results to account for filtering
-                    include=["documents", "metadatas", "distances"]
-                )
+                # Create a context manager to safely execute the query with privacy filtering
+                from contextlib import contextmanager
+                
+                @contextmanager
+                def privacy_context():
+                    """Context manager to ensure privacy during query execution"""
+                    try:
+                        # Execute the contained code with privacy filtering
+                        yield
+                    except Exception as e:
+                        # In case of an error, ensure we don't leak query content in the exception
+                        sanitized_error = str(e)
+                        if query in sanitized_error:
+                            sanitized_error = sanitized_error.replace(query, "[QUERY CONTENT REDACTED]")
+                        logger.error(f"Error during query execution: {sanitized_error}")
+                        raise Exception(f"Search error: {sanitized_error}")
+                
+                # Execute query within the privacy context
+                with privacy_context():
+                    results = self.collection.query(
+                        query_texts=[query],
+                        n_results=k * 3,  # Request more results to account for filtering
+                        include=["documents", "metadatas", "distances"]
+                    )
                 
                 logger.info(f"ChromaDB search returned {len(results['ids'][0])} results")
             except Exception as query_error:
@@ -431,10 +452,34 @@ class VectorStore:
             return search_results, None
 
         except Exception as e:
-            error_msg = f"Error searching vector store: {str(e)}"
+            # Privacy-enhanced error handling for search errors
+            error_details = str(e)
+            
+            # Check if the query string appears in the error message and redact it
+            if query and query in error_details:
+                error_details = error_details.replace(query, "[QUERY CONTENT REDACTED]")
+            
+            # Create a sanitized error message
+            error_msg = f"Error searching vector store: {error_details}"
+            
+            # Log error with privacy filtering
             logger.error(error_msg)
-            logger.error("Full search error details:", exc_info=True)
-            return [], error_msg
+            
+            # Use a special approach for the full exception traceback to prevent leaking query content
+            try:
+                import traceback
+                tb = traceback.format_exc()
+                # Redact any instances of the query in the traceback
+                if query and query in tb:
+                    sanitized_tb = tb.replace(query, "[QUERY CONTENT REDACTED]")
+                    logger.error(f"Full search error details (sanitized):\n{sanitized_tb}")
+                else:
+                    logger.error("Full search error details:", exc_info=True)
+            except Exception:
+                # Fallback to basic logging if traceback handling fails
+                logger.error("Error occurred during search operation (details redacted for privacy)")
+            
+            return [], "An error occurred during search. Please try a different query."
 
     def _schedule_backup(self):
         """Schedule a backup if enough time has passed since last backup"""
