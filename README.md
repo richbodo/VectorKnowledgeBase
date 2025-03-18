@@ -6,6 +6,8 @@ I implemented on Replit, using various tools for enhanced functionality. My note
 
 Status is that it works for me but this code is totally alpha so I doubt it will work for you, but I'm super interested in improving it.
 
+The Custom GPT that this is enhancing needs a lot of love and config/prompt engineering that I'll be doing over the next weeks.  I'll replace this with a link to a google doc on how to prompt engineer that GPT when I'm done.
+
 ## Table of Contents
 
 - [Features](#features)
