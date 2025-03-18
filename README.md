@@ -4,6 +4,8 @@ Vector DB and API for use with OpenAI custom GPTs to hook into with GPT Actions 
 
 I implemented on Replit, using various tools for enhanced functionality. My notes on this setup are [here](http://richbodo.pbworks.com/w/page/160057005/LLM%20RAG%20Intro), and my upload and API test tool is [here](https://github.com/richbodo/snh_bridge_test).
 
+Status is that it works for me but this code is totally alpha so I doubt it will work for you, but I'm super interested in improving it.
+
 ## Table of Contents
 
 - [Features](#features)
